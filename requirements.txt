@@ -1,0 +1,4 @@
+ultralytics
+coremltools
+opencv-python
+roboflow
