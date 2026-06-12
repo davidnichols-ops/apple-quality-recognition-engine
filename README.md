@@ -205,6 +205,17 @@ python capture_dataset.py
 * **The Fix:** Implemented an alphabetical padding bypass patch using character anchors (`a_` through `q_` for varieties, `z_` for defects) to force structural layer synchronization.
 * **Data Collection:** Planning to gather 4-axis fruit rotations with phone HDR and Scene Optimization filters **disabled** to maintain pixel domain parity with the Arducam THIS WEEK.
 
+### 🍏 Day 2 Continued: The Floor-Rule Pivot & Massive Refactor (June 12, 2026)
+* **Architecture Breakthrough:** Talked to the manager at the cold storage unit today to double-check grading rules, and he completely broke my entire architecture. I had spent hours mapping out this elaborate USDA 4-tier grading system. Turns out on the actual floor, they use a dead-simple 1-2-3 system: Grade 1 (premium retail), Grade 2 (processing/slicers), and Grade 3 (low-value utility). Anything worse goes straight into the trash bin because it's not worth the labor to sort. Building an AI that doesn't match how the actual facility operates is a death sentence, so I had to scrap the old schema and pivot immediately.
+* **The Code & Math Rebuild:** Dropping from 4 grades to 3 changed the math on everything:
+  - Old Setup: 18 varieties × 4 grades + 11 defects = 83 classes
+  - New Setup: 18 varieties × 3 grades (g1, g2, g3) + 11 defects = 65 total classes
+  - This shifted my local inference logic cutoff boundary from cls_id < 72 down to cls_id < 54. The spatial binding script actually gets a minor speed boost here because it has a smaller index array to loop through.
+* **Zestar Integration:** Added Zestar apples to the roster. Because it starts with a 'Z' but needs to be index 0, it became a_zestar_g1. That forced me to re-map every single alphabetical prefix (a_ through r_ for varieties, z_ for defects) so Roboflow's automatic sorting engine wouldn't scramble my indexes.
+* **Model & Hardware Realignment:**
+  - Fixed a major documentation blunder. The README listed yolo11n as the production model. That Nano model was strictly a sandbox test to make sure macOS Tahoe's sandboxing didn't block the camera bus and that MPS (Metal Performance Shaders) acceleration worked on the M4 chip. The actual production model is a heavy-duty, multi-task YOLO11 model trained at 1024×1024 and exported to CoreML for the Apple Neural Engine.
+  - Scrapped the Phone: Ditched the Samsung A16 for data collection. Taking training photos on a phone camera and deploying on an Arducam global shutter lens causes massive domain bias (the model learns phone ISP artifacts instead of raw production pixels). I wrote capture_dataset.py to pull raw MJPG streams directly from the Arducam at 1280x720 using a manual spacebar trigger for the 4-shot rotation sequence.
+
 ## File Structure
 
 ```
