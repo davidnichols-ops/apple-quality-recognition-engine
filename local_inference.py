@@ -13,22 +13,28 @@ from ultralytics import YOLO
 def parse_class_token(class_name):
     """
     Parse class token to separate Variety from Grade.
-    Expected format: 'variety_grade' or 'anomaly'
-    Returns: (variety, grade) tuple or (anomaly, None)
+    Expected format: 'prefix_variety_grade' or 'prefix_defect'
+    Uses rsplit to handle multi-word varieties correctly.
+    Returns: (variety, grade) tuple or (defect, None)
     """
-    if '_' in class_name:
-        parts = class_name.split('_')
-        if len(parts) == 2:
-            return parts[0], parts[1]
-        # Handle anomalies (single token with underscores like 'sooty_blotch_flyspeck')
-        return class_name, None
-    return class_name, None
+    # Strip the sorting prefix from the front
+    _, clean_name = class_name.split("_", 1)
+    
+    # Split from the RIGHT to isolate the grade (handles multi-word varieties)
+    if clean_name.startswith("z_"):
+        # Defect class
+        _, defect_name = clean_name.split("_", 1)
+        return defect_name, None
+    else:
+        # Variety class - split from right to get grade
+        variety, grade = clean_name.rsplit("_", 1)
+        return variety, grade
 
 
 def format_display_text(class_name, confidence):
     """
     Format upscale display string for variety-grade predictions.
-    Example: "ENTERPRISE - VERY FANCY [0.89]"
+    Example: "CRIMSON CRISP (G2) [0.89]"
     """
     variety, grade = parse_class_token(class_name)
     
@@ -36,9 +42,9 @@ def format_display_text(class_name, confidence):
         # Format variety and grade with uppercase
         variety_upper = variety.replace('_', ' ').upper()
         grade_upper = grade.upper()
-        return f"{variety_upper} - {grade_upper} [{confidence:.2f}]"
+        return f"{variety_upper} ({grade_upper}) [{confidence:.2f}]"
     else:
-        # Anomaly class
+        # Defect class
         return f"{variety.upper()} [{confidence:.2f}]"
 
 
@@ -82,79 +88,68 @@ def main():
             print("[ERROR]: Could not read frame from camera.")
             break
         
-        # Run inference at imgsz=1024 on Apple Silicon/Neural Engine backend
-        results = model(frame, imgsz=1024, verbose=False)
+        # Run core inference through Apple Neural Engine
+        results = model(frame, conf=0.35, imgsz=1024, verbose=False)
         
-        # Create annotated frame
-        annotated_frame = frame.copy()
-        
-        # Loop through predicted bounding box coordinates
-        for result in results:
-            boxes = result.boxes
-            if boxes is not None:
-                for box in boxes:
-                    # Get box coordinates
-                    x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()
-                    x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
-                    
-                    # Get class index and confidence
-                    class_id = int(box.cls[0].cpu().numpy())
-                    confidence = float(box.conf[0].cpu().numpy())
-                    
-                    # Get class name from model
-                    class_name = model.names[class_id]
-                    
-                    # Format display text
-                    display_text = format_display_text(class_name, confidence)
-                    
-                    # Draw bounding box
-                    cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                    
-                    # Draw label background
-                    label_size = cv2.getTextSize(display_text, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 2)[0]
-                    cv2.rectangle(
-                        annotated_frame,
-                        (x1, y1 - label_size[1] - 10),
-                        (x1 + label_size[0], y1),
-                        (0, 255, 0),
-                        -1
-                    )
-                    
-                    # Draw label text
-                    cv2.putText(
-                        annotated_frame,
-                        display_text,
-                        (x1, y1 - 5),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.5,
-                        (0, 0, 0),
-                        2
-                    )
-        
-        # Calculate frame timing benchmarks
-        frame_time = time.time() - start_time
-        fps = 1.0 / frame_time if frame_time > 0 else 0
-        
-        # Add FPS annotation
-        cv2.putText(
-            annotated_frame,
-            f"M4 Neural Engine FPS: {fps:.1f}",
-            (20, 40),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            (0, 255, 0),
-            2
-        )
-        
-        # Project output to window
-        cv2.imshow("M4 Edge Sorting Pipeline Engine", annotated_frame)
-        
-        # Exit on 'q' key press
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            print("[SYSTEM]: Shutting down M4 Edge Sorting Pipeline Engine...")
-            break
-    
-    # Cleanly release hardware hooks
+        macro_apples = []
+        micro_anomalies = []
+
+        # --- STAGE 1 & 2: INSTANCE PARSING ---
+        for box in results[0].boxes:
+            cls_id = int(box.cls[0])
+            coords = list(map(int, box.xyxy[0])) # [x1, y1, x2, y2]
+            conf = float(box.conf[0])
+            flat_name = model.names[cls_id]
+
+            if cls_id < 54: # New Variety Bound (18 varieties × 3 tiers)
+                macro_apples.append({"id": cls_id, "name": flat_name, "box": coords, "conf": conf, "defects": []})
+            else:
+                micro_anomalies.append({"id": cls_id, "name": flat_name, "box": coords, "conf": conf})
+
+        # --- STAGE 3: SPATIAL BINDING LAYER ---
+        for anomaly in micro_anomalies:
+            ax1, ay1, ax2, ay2 = anomaly["box"]
+            acx, acy = (ax1 + ax2) / 2, (ay1 + ay2) / 2 # Centroid coordinates
+            
+            best_parent = None
+            min_distance = float('inf')
+
+            for apple in macro_apples:
+                mx1, my1, mx2, my2 = apple["box"]
+                
+                # Intersection test: centroid containment check
+                if mx1 <= acx <= mx2 and my1 <= acy <= my2:
+                    mcx, mcy = (mx1 + mx2) / 2, (my1 + my2) / 2
+                    distance = ((acx - mcx)**2 + (acy - mcy)**2)**0.5
+                    if distance < min_distance:
+                        min_distance = distance
+                        best_parent = apple
+                        
+            if best_parent:
+                best_parent["defects"].append(anomaly)
+
+        # --- STAGE 4: OUTPUT RENDERING ENGINE ---
+        # Draw apples first (Green layer)
+        for apple in macro_apples:
+            x1, y1, x2, y2 = apple["box"]
+            display_text = format_display_text(apple["name"], apple["conf"])
+            
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            cv2.putText(frame, display_text, (x1, y1 - 10), cv2.FONT_HERSHEY_DUPLEX, 0.5, (0, 255, 0), 1)
+
+            # Draw bounded child blemishes belonging to this instance (Red layer)
+            for defect in apple["defects"]:
+                dx1, dy1, dx2, dy2 = defect["box"]
+                defect_text = format_display_text(defect["name"], defect["conf"])
+                cv2.rectangle(frame, (dx1, dy1), (dx2, dy2), (0, 0, 255), 2)
+                cv2.putText(frame, defect_text, (dx1, dy1 - 5), cv2.FONT_HERSHEY_MINI, 0.4, (0, 0, 255), 1)
+
+        fps = 1.0 / (time.time() - start_time)
+        cv2.putText(frame, f"M4 Edge Engine: {fps:.1f} FPS", (20, 40), cv2.FONT_HERSHEY_DUPLEX, 0.7, (255, 0, 0), 2)
+        cv2.imshow("M4 Edge Sorting Pipeline Engine", frame)
+
+        if cv2.waitKey(1) & 0xFF == ord('q'): break
+
     cap.release()
     cv2.destroyAllWindows()
     print("[SYSTEM]: Camera and window resources released.")

@@ -25,7 +25,8 @@ The system employs a **single-model, multi-task YOLO11 architecture** with a fla
 **Detection Strategy:**
 - **Macro Boxes**: Drawn around full apples for fused Variety + Quality Grade classification
 - **Micro Boxes**: Nested inside parent boundaries for surface anomaly/defect localization
-- **Flattened Mapping**: 79-class array (68 variety-grade combos + 11 anomaly classes)
+- **Flattened Mapping**: 65-class array (54 variety-grade combos + 11 anomaly classes)
+- **Quality Tiers**: 3-tier grading system (G1=Premium, G2=Average, G3=Utility)
 
 ## Hardware Configuration
 
@@ -54,45 +55,52 @@ Task: detect
 
 ## Class Dictionary Schema
 
-### Variety × Quality Grade Matrix (Indices 0-67)
+### Quality Grade System
+- **G1**: Premium (Very Fancy)
+- **G2**: Average (Fancy)
+- **G3**: Utility (Low Quality)
+- **Below G3**: Discarded (not labeled)
 
-| Variety | very_fancy | fancy | n1 | utility |
-|---------|------------|-------|----|---------|
-| redfree | 0 | 1 | 2 | 3 |
-| grand_gala | 4 | 5 | 6 | 7 |
-| priscilla | 8 | 9 | 10 | 11 |
-| freedom | 12 | 13 | 14 | 15 |
-| sweet_16 | 16 | 17 | 18 | 19 |
-| crimson_crisp | 20 | 21 | 22 | 23 |
-| spartan | 24 | 25 | 26 | 27 |
-| macoun | 28 | 29 | 30 | 31 |
-| snowsweet | 32 | 33 | 34 | 35 |
-| liberty | 36 | 37 | 38 | 39 |
-| pink_lady | 40 | 41 | 42 | 43 |
-| chieftain | 44 | 45 | 46 | 47 |
-| winecrisp | 48 | 49 | 50 | 51 |
-| ludacrisp | 52 | 53 | 54 | 55 |
-| enterprise | 56 | 57 | 58 | 59 |
-| rosalee | 60 | 61 | 62 | 63 |
-| evercrisp | 64 | 65 | 66 | 67 |
+### Variety × Quality Grade Matrix (Indices 0-53)
 
-### Surface Anomaly Classes (Indices 68-78)
+| Variety | G1 | G2 | G3 |
+|---------|----|----|----|
+| zestar | 0 | 1 | 2 |
+| redfree | 3 | 4 | 5 |
+| grand_gala | 6 | 7 | 8 |
+| priscilla | 9 | 10 | 11 |
+| freedom | 12 | 13 | 14 |
+| sweet_16 | 15 | 16 | 17 |
+| crimson_crisp | 18 | 19 | 20 |
+| spartan | 21 | 22 | 23 |
+| macoun | 24 | 25 | 26 |
+| snowsweet | 27 | 28 | 29 |
+| liberty | 30 | 31 | 32 |
+| pink_lady | 33 | 34 | 35 |
+| chieftain | 36 | 37 | 38 |
+| winecrisp | 39 | 40 | 41 |
+| ludacrisp | 42 | 43 | 44 |
+| enterprise | 45 | 46 | 47 |
+| rosalee | 48 | 49 | 50 |
+| evercrisp | 51 | 52 | 53 |
+
+### Surface Anomaly Classes (Indices 54-64)
 
 | Index | Anomaly |
 |-------|---------|
-| 68 | bruise |
-| 69 | russeting |
-| 70 | scarf_skin |
-| 71 | sunburn |
-| 72 | stem_puncture |
-| 73 | split_crack |
-| 74 | misshapen |
-| 75 | scab |
-| 76 | sooty_blotch_flyspeck |
-| 77 | rot |
-| 78 | insect_damage |
+| 54 | bruise |
+| 55 | russeting |
+| 56 | scarf_skin |
+| 57 | sunburn |
+| 58 | stem_puncture |
+| 59 | split_crack |
+| 60 | misshapen |
+| 61 | scab |
+| 62 | sooty_blotch_flyspeck |
+| 63 | rot |
+| 64 | insect_damage |
 
-**Total Classes: 79**
+**Total Classes: 65** (18 varieties × 3 grades + 11 defects)
 
 ## Local Setup Installation
 
@@ -157,9 +165,23 @@ python local_inference.py
 **Expected Output:**
 - CoreML model loads on M4 Neural Engine
 - Inference runs at 1024x1024 resolution
-- Display format: `ENTERPRISE - VERY FANCY [0.89]`
+- Display format: `CRIMSON CRISP (G2) [0.89]`
 - Window title: "M4 Edge Sorting Pipeline Engine"
 - Real-time FPS benchmarks displayed
+- Spatial binding: Green boxes for apples, red boxes for nested defects
+
+### Phase 5: Data Capture
+
+```bash
+# Run data capture script for Arducam
+python capture_dataset.py
+```
+
+**Expected Output:**
+- Interactive prompt to select variety
+- 4-shot exposure synchronization per apple
+- Images saved to dataset/ directory with alphabetical prefix naming
+- MJPG uncompressed streaming at 1280x720
 
 ## Project Timeline Matrix
 
@@ -169,6 +191,7 @@ python local_inference.py
 | **Phase 2** | Baseline Inference Test | ⏳ Pending | YOLO11n dry run, MPS acceleration verification |
 | **Phase 3** | Cloud Pipeline Setup | ⏳ Pending | Roboflow workspace, dataset upload, annotation |
 | **Phase 4** | Model Training & CoreML Conversion | ⏳ Pending | Trained YOLO11 model, best.mlpackage, local_inference.py |
+| **Phase 5** | Data Capture | ⏳ Pending | Arducam dataset collection with capture_dataset.py |
 
 ## 📈 Engineering Progress Journal
 
@@ -186,21 +209,22 @@ python local_inference.py
 
 ```
 .
-├── .gitignore              # Python/ML exclusions
+├── .gitignore              # Python/ML exclusions + dataset/
 ├── README.md               # This file
 ├── requirements.txt        # Pinned baseline dependencies
-├── data.yaml               # 79-class dataset configuration
+├── data.yaml               # 65-class dataset configuration
 ├── baseline_verify.py      # Camera verification script
-└── local_inference.py      # Production CoreML deployment script
+├── local_inference.py      # Production CoreML deployment with spatial binding
+└── capture_dataset.py      # Arducam data acquisition script
 ```
 
 ## Display Format Examples
 
 ### Variety + Grade Predictions
 ```
-ENTERPRISE - VERY FANCY [0.89]
-PINK LADY - FANCY [0.76]
-CRIMSON CRISP - N1 [0.92]
+ZESTAR (G1) [0.89]
+CRIMSON CRISP (G2) [0.76]
+ENTERPRISE (G3) [0.92]
 ```
 
 ### Surface Anomaly Predictions
@@ -216,6 +240,24 @@ SOOTY BLOTCH FLYSPECK [0.63]
 - **Baseline (YOLO11n @ 640)**: ~30-45 FPS
 - **Production (CoreML @ 1024)**: ~15-25 FPS
 - **Backend**: Apple Neural Engine (ANE) acceleration
+
+## Stage 3 Spatial Binding Layer
+
+The production inference engine implements a multi-stage spatial binding architecture:
+
+### Stage 1 & 2: Instance Parsing
+- **Macro Apples** (indices 0-53): Full apple bounding boxes with variety + grade classification
+- **Micro Anomalies** (indices 54-64): Surface defect bounding boxes
+
+### Stage 3: Spatial Binding
+- Centroid containment check: Defect centroids are tested against apple bounding boxes
+- Distance-based parent selection: Defects bind to the nearest containing apple
+- Hierarchical relationship: Each apple maintains a list of child defects
+
+### Stage 4: Output Rendering
+- Green boxes: Apple variety + grade predictions
+- Red boxes: Nested surface defects
+- Display format: `VARIETY (GRADE) [confidence]` for apples, `DEFECT [confidence]` for anomalies
 
 ## Dependencies
 

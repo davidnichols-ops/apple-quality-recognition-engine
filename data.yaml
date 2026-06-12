@@ -1,93 +1,79 @@
 # data.yaml
-# Production Specification (Alphabetical Bypass Patch)
-# Total Classes: 79 (0-78)
+# Production Specification (77-Class 3-Tier Quality Update)
+# Total Classes: 65 (0-64)
 
 path: ./apple_dataset
 train: images/train
 val: images/val
 test: images/test
 
-nc: 79
+nc: 65
 names:
-  # --- MACRO ENGINE: VARIETIES (0-67) PADDED FOR ALPHABETICAL CONTROL ---
-  0: a_redfree_very_fancy
-  1: a_redfree_fancy
-  2: a_redfree_n1
-  3: a_redfree_utility
-  4: b_grand_gala_very_fancy
-  5: b_grand_gala_fancy
-  6: b_grand_gala_n1
-  7: b_grand_gala_utility
-  8: c_priscilla_very_fancy
-  9: c_priscilla_fancy
-  10: c_priscilla_n1
-  11: c_priscilla_utility
-  12: d_freedom_very_fancy
-  13: d_freedom_fancy
-  14: d_freedom_n1
-  15: d_freedom_utility
-  16: e_sweet_16_very_fancy
-  17: e_sweet_16_fancy
-  18: e_sweet_16_n1
-  19: e_sweet_16_utility
-  20: f_crimson_crisp_very_fancy
-  21: f_crimson_crisp_fancy
-  22: f_crimson_crisp_n1
-  23: f_crimson_crisp_utility
-  24: g_spartan_very_fancy
-  25: g_spartan_fancy
-  26: g_spartan_n1
-  27: g_spartan_utility
-  28: h_macoun_very_fancy
-  29: h_macoun_fancy
-  30: h_macoun_n1
-  31: h_macoun_utility
-  32: i_snowsweet_very_fancy
-  33: i_snowsweet_fancy
-  34: i_snowsweet_n1
-  35: i_snowsweet_utility
-  36: j_liberty_very_fancy
-  37: j_liberty_fancy
-  38: j_liberty_n1
-  39: j_liberty_utility
-  40: k_pink_lady_very_fancy
-  41: k_pink_lady_fancy
-  42: k_pink_lady_n1
-  43: k_pink_lady_utility
-  44: l_chieftain_very_fancy
-  45: l_chieftain_fancy
-  46: l_chieftain_n1
-  47: l_chieftain_utility
-  48: m_winecrisp_very_fancy
-  49: m_winecrisp_fancy
-  50: m_winecrisp_n1
-  51: m_winecrisp_utility
-  52: n_ludacrisp_very_fancy
-  53: n_ludacrisp_fancy
-  54: n_ludacrisp_n1
-  55: n_ludacrisp_utility
-  56: o_enterprise_very_fancy
-  57: o_enterprise_fancy
-  58: o_enterprise_n1
-  59: o_enterprise_utility
-  60: p_rosalee_very_fancy
-  61: p_rosalee_fancy
-  62: p_rosalee_n1
-  63: p_rosalee_utility
-  64: q_evercrisp_very_fancy
-  65: q_evercrisp_fancy
-  66: q_evercrisp_n1
-  67: q_evercrisp_utility
+  # --- MACRO CLASSIFIER: 18 VARIETIES × 3 GRADES (0-53) ---
+  0: a_zestar_g1
+  1: a_zestar_g2
+  2: a_zestar_g3
+  3: b_redfree_g1
+  4: b_redfree_g2
+  5: b_redfree_g3
+  6: c_grand_gala_g1
+  7: c_grand_gala_g2
+  8: c_grand_gala_g3
+  9: d_priscilla_g1
+  10: d_priscilla_g2
+  11: d_priscilla_g3
+  12: e_freedom_g1
+  13: e_freedom_g2
+  14: e_freedom_g3
+  15: f_sweet_16_g1
+  16: f_sweet_16_g2
+  17: f_sweet_16_g3
+  18: g_crimson_crisp_g1
+  19: g_crimson_crisp_g2
+  20: g_crimson_crisp_g3
+  21: h_spartan_g1
+  22: h_spartan_g2
+  23: h_spartan_g3
+  24: i_macoun_g1
+  25: i_macoun_g2
+  26: i_macoun_g3
+  27: j_snowsweet_g1
+  28: j_snowsweet_g2
+  29: j_snowsweet_g3
+  30: k_liberty_g1
+  31: k_liberty_g2
+  32: k_liberty_g3
+  33: l_pink_lady_g1
+  34: l_pink_lady_g2
+  35: l_pink_lady_g3
+  36: m_chieftain_g1
+  37: m_chieftain_g2
+  38: m_chieftain_g3
+  39: n_winecrisp_g1
+  40: n_winecrisp_g2
+  41: n_winecrisp_g3
+  42: o_ludacrisp_g1
+  43: o_ludacrisp_g2
+  44: o_ludacrisp_g3
+  45: p_enterprise_g1
+  46: p_enterprise_g2
+  47: p_enterprise_g3
+  48: q_rosalee_g1
+  49: q_rosalee_g2
+  50: q_rosalee_g3
+  51: r_evercrisp_g1
+  52: r_evercrisp_g2
+  53: r_evercrisp_g3
 
-  # --- MICRO ENGINE: DEFECTS (68-78) FORCED TO THE BOTTOM ---
-  68: z_bruise
-  69: z_russeting
-  70: z_scarf_skin
-  71: z_sunburn
-  72: z_stem_puncture
-  73: z_split_crack
-  74: z_misshapen
-  75: z_scab
-  76: z_sooty_blotch_flyspeck
-  77: z_rot
-  78: z_insect_damage
+  # --- MICRO OVERLAY: DEFECTS (54-64) ---
+  54: z_bruise
+  55: z_russeting
+  56: z_scarf_skin
+  57: z_sunburn
+  58: z_stem_puncture
+  59: z_split_crack
+  60: z_misshapen
+  61: z_scab
+  62: z_sooty_blotch_flyspeck
+  63: z_rot
+  64: z_insect_damage
