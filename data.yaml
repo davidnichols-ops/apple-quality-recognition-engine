@@ -1,96 +1,93 @@
-# Apple Quality Recognition Engine Dataset Configuration
-# Single-model multi-task YOLO11 architecture with flattened class mapping
+# data.yaml
+# Production Specification (Alphabetical Bypass Patch)
+# Total Classes: 79 (0-78)
 
 path: ./apple_dataset
 train: images/train
 val: images/val
 test: images/test
 
-# Class count: 79 total classes
-# - 68 variety-grade combinations (17 varieties × 4 quality grades)
-# - 11 surface anomaly/defect classes
 nc: 79
-
-# Flattened class name mapping
-# Indices 0-67: Variety × Quality Grade combinations
-# Indices 68-78: Surface anomaly classes
 names:
-  0: redfree_very_fancy
-  1: redfree_fancy
-  2: redfree_n1
-  3: redfree_utility
-  4: grand_gala_very_fancy
-  5: grand_gala_fancy
-  6: grand_gala_n1
-  7: grand_gala_utility
-  8: priscilla_very_fancy
-  9: priscilla_fancy
-  10: priscilla_n1
-  11: priscilla_utility
-  12: freedom_very_fancy
-  13: freedom_fancy
-  14: freedom_n1
-  15: freedom_utility
-  16: sweet_16_very_fancy
-  17: sweet_16_fancy
-  18: sweet_16_n1
-  19: sweet_16_utility
-  20: crimson_crisp_very_fancy
-  21: crimson_crisp_fancy
-  22: crimson_crisp_n1
-  23: crimson_crisp_utility
-  24: spartan_very_fancy
-  25: spartan_fancy
-  26: spartan_n1
-  27: spartan_utility
-  28: macoun_very_fancy
-  29: macoun_fancy
-  30: macoun_n1
-  31: macoun_utility
-  32: snowsweet_very_fancy
-  33: snowsweet_fancy
-  34: snowsweet_n1
-  35: snowsweet_utility
-  36: liberty_very_fancy
-  37: liberty_fancy
-  38: liberty_n1
-  39: liberty_utility
-  40: pink_lady_very_fancy
-  41: pink_lady_fancy
-  42: pink_lady_n1
-  43: pink_lady_utility
-  44: chieftain_very_fancy
-  45: chieftain_fancy
-  46: chieftain_n1
-  47: chieftain_utility
-  48: winecrisp_very_fancy
-  49: winecrisp_fancy
-  50: winecrisp_n1
-  51: winecrisp_utility
-  52: ludacrisp_very_fancy
-  53: ludacrisp_fancy
-  54: ludacrisp_n1
-  55: ludacrisp_utility
-  56: enterprise_very_fancy
-  57: enterprise_fancy
-  58: enterprise_n1
-  59: enterprise_utility
-  60: rosalee_very_fancy
-  61: rosalee_fancy
-  62: rosalee_n1
-  63: rosalee_utility
-  64: evercrisp_very_fancy
-  65: evercrisp_fancy
-  66: evercrisp_n1
-  67: evercrisp_utility
-  68: bruise
-  69: russeting
-  70: scarf_skin
-  71: sunburn
-  72: stem_puncture
-  73: split_crack
-  74: misshapen
-  75: scab
-  76: sooty_blotch_flyspeck
-  77: rot
-  78: insect_damage
+  # --- MACRO ENGINE: VARIETIES (0-67) PADDED FOR ALPHABETICAL CONTROL ---
+  0: a_redfree_very_fancy
+  1: a_redfree_fancy
+  2: a_redfree_n1
+  3: a_redfree_utility
+  4: b_grand_gala_very_fancy
+  5: b_grand_gala_fancy
+  6: b_grand_gala_n1
+  7: b_grand_gala_utility
+  8: c_priscilla_very_fancy
+  9: c_priscilla_fancy
+  10: c_priscilla_n1
+  11: c_priscilla_utility
+  12: d_freedom_very_fancy
+  13: d_freedom_fancy
+  14: d_freedom_n1
+  15: d_freedom_utility
+  16: e_sweet_16_very_fancy
+  17: e_sweet_16_fancy
+  18: e_sweet_16_n1
+  19: e_sweet_16_utility
+  20: f_crimson_crisp_very_fancy
+  21: f_crimson_crisp_fancy
+  22: f_crimson_crisp_n1
+  23: f_crimson_crisp_utility
+  24: g_spartan_very_fancy
+  25: g_spartan_fancy
+  26: g_spartan_n1
+  27: g_spartan_utility
+  28: h_macoun_very_fancy
+  29: h_macoun_fancy
+  30: h_macoun_n1
+  31: h_macoun_utility
+  32: i_snowsweet_very_fancy
+  33: i_snowsweet_fancy
+  34: i_snowsweet_n1
+  35: i_snowsweet_utility
+  36: j_liberty_very_fancy
+  37: j_liberty_fancy
+  38: j_liberty_n1
+  39: j_liberty_utility
+  40: k_pink_lady_very_fancy
+  41: k_pink_lady_fancy
+  42: k_pink_lady_n1
+  43: k_pink_lady_utility
+  44: l_chieftain_very_fancy
+  45: l_chieftain_fancy
+  46: l_chieftain_n1
+  47: l_chieftain_utility
+  48: m_winecrisp_very_fancy
+  49: m_winecrisp_fancy
+  50: m_winecrisp_n1
+  51: m_winecrisp_utility
+  52: n_ludacrisp_very_fancy
+  53: n_ludacrisp_fancy
+  54: n_ludacrisp_n1
+  55: n_ludacrisp_utility
+  56: o_enterprise_very_fancy
+  57: o_enterprise_fancy
+  58: o_enterprise_n1
+  59: o_enterprise_utility
+  60: p_rosalee_very_fancy
+  61: p_rosalee_fancy
+  62: p_rosalee_n1
+  63: p_rosalee_utility
+  64: q_evercrisp_very_fancy
+  65: q_evercrisp_fancy
+  66: q_evercrisp_n1
+  67: q_evercrisp_utility
+
+  # --- MICRO ENGINE: DEFECTS (68-78) FORCED TO THE BOTTOM ---
+  68: z_bruise
+  69: z_russeting
+  70: z_scarf_skin
+  71: z_sunburn
+  72: z_stem_puncture
+  73: z_split_crack
+  74: z_misshapen
+  75: z_scab
+  76: z_sooty_blotch_flyspeck
+  77: z_rot
+  78: z_insect_damage
