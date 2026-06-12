@@ -170,6 +170,18 @@ python local_inference.py
 | **Phase 3** | Cloud Pipeline Setup | ⏳ Pending | Roboflow workspace, dataset upload, annotation |
 | **Phase 4** | Model Training & CoreML Conversion | ⏳ Pending | Trained YOLO11 model, best.mlpackage, local_inference.py |
 
+## 📈 Engineering Progress Journal
+
+### 🍏 Day 1: Hardware & Sandbox Validation (June 11, 2026)
+* **Milestones:** Bypassed macOS Tahoe sandboxing hooks; verified Arducam global shutter uncompressed pipeline streams using OpenCV.
+* **Inference Benchmarks:** Tested `yolo11n.pt` locally. Confirmed native Apple Silicon GPU acceleration via Metal Performance Shaders (MPS), stabilizing frames at **40 FPS** (640px).
+* **Architecture Design:** Built a comprehensive 79-class database framework mapping multi-task overlapping bounding boxes.
+
+### 🍏 Day 2: Cloud Ingestion Optimization & Data Collection (June 12, 2026)
+* **System Bottleneck Discovered:** Observed that Roboflow automatically alphabetizes mass-uploaded class arrays, which scrambled our sequential 0-indexed matrix paths (`if cls_id < 68`).
+* **The Fix:** Implemented an alphabetical padding bypass patch using character anchors (`a_` through `q_` for varieties, `z_` for defects) to force structural layer synchronization.
+* **Data Collection:** Planning to gather 4-axis fruit rotations with phone HDR and Scene Optimization filters **disabled** to maintain pixel domain parity with the Arducam THIS WEEK.
+
 ## File Structure
 
 ```
