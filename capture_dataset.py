@@ -83,7 +83,6 @@ while apple_id < NUM_APPLES:
         
         # SPACEBAR = Capture Exposure
         if key == 32:
-            # Output name template matching dataset tracking requirements
             filename = f"{PREFIXED_VARIETY}_{apple_id:04d}_view_{shot_id}.jpg"
             path = os.path.join(save_dir, filename)
             cv2.imwrite(path, frame)
@@ -99,8 +98,37 @@ while apple_id < NUM_APPLES:
 
     apple_id += 1
     print(f"[SUCCESS] Unit sequence complete for apple item {apple_id}.")
+    
+    # --- NO-CLICK WINDOW FOCUS FIX ---
     if apple_id < NUM_APPLES:
-        input("Physically change apple item and press ENTER to unblock camera bus...")
+        print("[WAIT] Camera loop paused. Press ENTER inside the CAMERA WINDOW to unblock...")
+        
+        # Keep updating the display frame to tell the user to swap apples and hit Enter
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                continue
+                
+            overlay = frame.copy()
+            prompt_text1 = f"APPLE {apple_id} COMPLETE."
+            prompt_text2 = "SWAP FRUIT & PRESS ENTER (IN THIS WINDOW) TO CONTINUE..."
+            
+            cv2.putText(overlay, prompt_text1, (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
+            cv2.putText(overlay, prompt_text2, (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+            cv2.imshow("Production Data Acquisition Engine", overlay)
+            
+            next_key = cv2.waitKey(1) & 0xFF
+            
+            # 13 is the ASCII value for the Carraige Return / ENTER key
+            if next_key == 13: 
+                break
+            
+            # Allow ESC interrupt even during the swap phase
+            if next_key == 27:
+                print("[INTERRUPT] Graceful shutdown executed.")
+                cap.release()
+                cv2.destroyAllWindows()
+                exit()
 
 cap.release()
 cv2.destroyAllWindows()
