@@ -1,79 +1,29 @@
 # data.yaml
-# Production Specification (77-Class 3-Tier Quality Update)
-# Total Classes: 65 (0-64)
+# Production Specification (Feature Detector Pipeline)
+# Total Classes: 13 (0-12)
 
 path: ./apple_dataset
 train: images/train
 val: images/val
 test: images/test
 
-nc: 65
+nc: 13
 names:
-  # --- MACRO CLASSIFIER: 18 VARIETIES × 3 GRADES (0-53) ---
-  0: a_zestar_g1
-  1: a_zestar_g2
-  2: a_zestar_g3
-  3: b_redfree_g1
-  4: b_redfree_g2
-  5: b_redfree_g3
-  6: c_grand_gala_g1
-  7: c_grand_gala_g2
-  8: c_grand_gala_g3
-  9: d_priscilla_g1
-  10: d_priscilla_g2
-  11: d_priscilla_g3
-  12: e_freedom_g1
-  13: e_freedom_g2
-  14: e_freedom_g3
-  15: f_sweet_16_g1
-  16: f_sweet_16_g2
-  17: f_sweet_16_g3
-  18: g_crimson_crisp_g1
-  19: g_crimson_crisp_g2
-  20: g_crimson_crisp_g3
-  21: h_spartan_g1
-  22: h_spartan_g2
-  23: h_spartan_g3
-  24: i_macoun_g1
-  25: i_macoun_g2
-  26: i_macoun_g3
-  27: j_snowsweet_g1
-  28: j_snowsweet_g2
-  29: j_snowsweet_g3
-  30: k_liberty_g1
-  31: k_liberty_g2
-  32: k_liberty_g3
-  33: l_pink_lady_g1
-  34: l_pink_lady_g2
-  35: l_pink_lady_g3
-  36: m_chieftain_g1
-  37: m_chieftain_g2
-  38: m_chieftain_g3
-  39: n_winecrisp_g1
-  40: n_winecrisp_g2
-  41: n_winecrisp_g3
-  42: o_ludacrisp_g1
-  43: o_ludacrisp_g2
-  44: o_ludacrisp_g3
-  45: p_enterprise_g1
-  46: p_enterprise_g2
-  47: p_enterprise_g3
-  48: q_rosalee_g1
-  49: q_rosalee_g2
-  50: q_rosalee_g3
-  51: r_evercrisp_g1
-  52: r_evercrisp_g2
-  53: r_evercrisp_g3
+  # --- MACRO PARENT BOX ---
+  0: apple
 
-  # --- MICRO OVERLAY: DEFECTS (54-64) ---
-  54: z_bruise
-  55: z_russeting
-  56: z_scarf_skin
-  57: z_sunburn
-  58: z_stem_puncture
-  59: z_split_crack
-  60: z_misshapen
-  61: z_scab
-  62: z_sooty_blotch_flyspeck
-  63: z_rot
-  64: z_insect_damage
+  # --- DISCARD TRIGGER ---
+  1: unfit_bin_discard
+
+  # --- MICRO DEFECT OVERLAY (Indices 2-12) ---
+  2: z_bruise
+  3: z_russeting
+  4: z_scarf_skin
+  5: z_sunburn
+  6: z_stem_puncture
+  7: z_split_crack
+  8: z_misshapen
+  9: z_scab
+  10: z_sooty_blotch_flyspeck
+  11: z_rot
+  12: z_insect_damage
