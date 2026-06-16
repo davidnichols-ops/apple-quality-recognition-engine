@@ -4,48 +4,41 @@ Most agricultural vision systems fail for a structural reason, not a modeling on
 
 They ask neural networks to perform judgment.
 
-This system does not.
+**This system does not.**
 
-The Apple Quality Recognition Engine is a production-grade edge vision architecture deployed on Apple Silicon for cold-storage sorting operations. It separates perception from decision-making:
+The Apple Quality Recognition Engine is an **edge-first** vision pipeline built for Apple Silicon (M4). It separates perception from decision-making:
 
-* The neural network detects reality.
-* The software enforces grading logic.
+- **YOLO11** detects apples, discard triggers, and surface defects.
+- A **deterministic grading engine** (driven by `grading_policy.yaml`) evaluates severity, spatial relationships, and coverage.
 
-YOLO11 performs object detection for apples, discard triggers, and surface defects. A deterministic grading engine evaluates severity, spatial relationships, and defect coverage to produce final class assignments.
+**Neural networks identify. Algorithms decide.**
 
-Neural networks identify. Algorithms decide.
+This separation keeps operational logic out of model weights, making facility rule changes fast and reliable.
 
-That separation is not aesthetic. It is operational necessity.
+---
 
-Every grading rule embedded in model weights becomes retraining debt. Every facility rule change becomes a training cycle. Every training cycle becomes downtime.
+## Core System Principles (Current Status)
 
-This system eliminates that dependency by design.
+| Principle              | Status     | Description |
+|------------------------|------------|-------------|
+| Detection ≠ Decision   | Complete   | Neural network detects; deterministic logic grades. |
+| Dynamic Schema         | Complete   | Defect taxonomy loads from policy file at runtime. |
+| Facility Ground Truth  | Complete   | Grading rules defined in `grading_policy.yaml`. |
+| Edge-Native Execution  | Complete   | Runs on Apple Neural Engine via CoreML / Ultralytics. |
+| Hardware Hardening     | Complete   | Automatic camera reconnection on Arducam drops. |
+| Operator Authority     | Complete   | Telemetry capture for human overrides. |
+| Active Learning Loop   | Partial    | Low-confidence frames are harvested (full loop pending). |
 
-⸻
-
-## Core System Principles
-
-| Principle | Description |
-|-----------|-------------|
-| Detection ≠ Decision | Neural network detects objects. Deterministic logic assigns grades. |
-| Dynamic Schema | Defect taxonomy scales without inference code modification. |
-| Facility Ground Truth | Real-world sorting rules override theoretical taxonomies. |
-| Edge-Native Execution | Runs fully on Apple Silicon via CoreML / ANE. |
-| Active Learning Loop | Uncertain predictions become training data automatically. |
-| Operator Authority | Human disagreement is captured as structured telemetry. |
-
-⸻
+---
 
 ## System Architecture
 
 ### Feature Detector Pipeline
 
-The architecture replaces fused classification with a two-stage system:
+Two-stage design:
 
-1. Neural detection (YOLO11)
-2. Deterministic grading engine
-
-This reduces model complexity and isolates operational logic from training artifacts.
+1. **Neural detection** (YOLO11)
+2. **Deterministic grading engine**
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -54,52 +47,29 @@ This reduces model complexity and isolates operational logic from training artif
 │                                                                 │
 │  ┌───────────────────────────────────────────────────────────┐  │
 │  │              MICRO DEFECT LAYER (Classes 2-N)             │  │
-│  │                                                           │  │
 │  │   Bruise     Russet     Scab      Rot     Crack          │  │
-│  │   ○          ○          ○         ○        ○             │  │
 │  └───────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### Execution Flow
+### Execution Flow (Implemented)
 
-1. **Neural Stage**
-   - YOLO11 detects:
-     * Apple instances (Class 0)
-     * Discard triggers (Class 1)
-     * Defect classes (Class 2-N)
+1. **Neural Stage** — YOLO11 detects apples (0), discard triggers (1), defects (2-N).
+2. **Spatial Binding** — Defects bound to apples via Intersection-over-Area (IoA ≥ 0.10).
+3. **Grading Engine** — Deterministic scoring from `compute_grade()` using policy file.
+4. **Discard Override** — Class 1 triggers immediate rejection on proximity.
+5. **Edge Harvesting** — Low-confidence detections (0.40–0.65) saved with telemetry.
+6. **Operator Override** — Manual disagreement logging (key `g`).
 
-2. **Spatial Binding**
-   - Defect boxes are bound to parent apple instances using Intersection-over-Area (IoA ≥ 0.10)
+---
 
-3. **Grading Engine**
-   - Deterministic scoring based on:
-     * defect count
-     * severity class
-     * area coverage ratio
+## Dynamic Schema & Policy Engine
 
-4. **Discard Override**
-   - Class 1 triggers immediate rejection if within 50px of any apple cluster
+The system loads defect taxonomy and rules at runtime from `grading_policy.yaml`. No code changes needed when adding defects (only dataset + retrain + redeploy).
 
-5. **Edge Harvesting**
-   - Low-confidence frames (0.40–0.65) are persisted for retraining
-
-6. **Operator Override**
-   - Press g to log disagreement with model output
-
-⸻
-
-## Dynamic Schema Model
-
-The system does not hardcode defect taxonomy.
-
-Instead, it derives structure at runtime:
-
-```python
-num_classes = len(model.names)
-```
-
-This allows defect classes to scale without modifying inference logic.
+**Key files:**
+- `grading_policy.yaml` — severity mapping + thresholds
+- Runtime class discovery: `num_classes = len(model.names)`
 
 ### Schema Rules
 
@@ -115,37 +85,30 @@ Adding a new defect requires:
 
 No inference changes required.
 
-⸻
+---
 
-## Hardware & Deployment Configuration
+## Hardware & Deployment
 
 ### Target Stack
-
-* Host: MacBook Air (Apple M4 Silicon)
-* OS: macOS 26 (Tahoe)
-* Camera: Arducam USB Global Shutter
-* Acceleration: Apple Neural Engine (CoreML / ANE)
-
-⸻
+- **Host**: MacBook Air (Apple M4)
+- **OS**: macOS 26 (Tahoe)
+- **Camera**: Arducam USB Global Shutter
+- **Acceleration**: Apple Neural Engine (CoreML)
 
 ### Camera Configuration
-
-* Camera Index: 0
-* Resolution: 1280x720
-* Pipeline: MJPG native stream
-* Backend: OpenCV (cv2.VideoCapture)
-
-⸻
+- Camera Index: 0
+- Resolution: 1280x720
+- Pipeline: MJPG native stream
+- Backend: OpenCV (cv2.VideoCapture)
 
 ### Inference Configuration
+- Sandbox: `yolo11n.pt` (validation only)
+- Production: `best.mlpackage` (CoreML)
+- Sandbox Resolution: 640px
+- Production Resolution: 1024px
+- Execution Backend: Apple Neural Engine (ANE)
 
-* Sandbox Model: yolo11n.pt (validation only)
-* Production Model: best.mlpackage (CoreML)
-* Sandbox Resolution: 640px
-* Production Resolution: 1024px
-* Execution Backend: Apple Neural Engine (ANE)
-
-⸻
+---
 
 ## Class Dictionary
 
@@ -167,7 +130,7 @@ No inference changes required.
 | 11 | z_rot | Defect | Severe |
 | 12 | z_insect_damage | Defect | Severe |
 
-⸻
+---
 
 ## Algorithmic Grading Matrix
 
@@ -179,8 +142,6 @@ Grading is computed deterministically in `compute_grade()`.
 * defect severity weights
 * area coverage ratio
 
-⸻
-
 ### Grade Logic
 
 | Grade | Condition | Output |
@@ -190,7 +151,7 @@ Grading is computed deterministically in `compute_grade()`.
 | G3 | structural defects OR >15% coverage | red |
 | DISCARD | Class 1 proximity event | reject |
 
-⸻
+---
 
 ## Spatial Binding Engine
 
@@ -208,7 +169,7 @@ IoA ≥ 0.10 → attach defect to apple instance
 
 This avoids centroid instability in dense cluster environments.
 
-⸻
+---
 
 ## Data Lifecycle Architecture
 
@@ -233,20 +194,18 @@ EDGE DEPLOYMENT
   → real-time grading
 ```
 
-⸻
+---
 
 ## Operational Pipeline
 
 ### 1. Environment Setup
 
 ```bash
-cd ~/Desktop/apple-quality-recognition-engine
+cd apple-quality-recognition-engine
 python3 -m venv ../venv
 source ../venv/bin/activate
 pip install -r requirements.txt
 ```
-
-⸻
 
 ### 2. Hardware Verification
 
@@ -254,13 +213,7 @@ pip install -r requirements.txt
 python baseline_verify.py
 ```
 
-Expected result:
-
-* camera stream opens
-* MPS acceleration active
-* frame loop stable
-
-⸻
+Verifies camera + baseline inference.
 
 ### 3. Production Inference
 
@@ -268,14 +221,11 @@ Expected result:
 python local_inference.py
 ```
 
-Outputs:
+Real-time grading with colors:
 
-* Green → G1
-* Orange → G2
-* Red → G3 / DISCARD
-* Magenta → discard trigger
-
-⸻
+- Green → G1
+- Orange → G2
+- Red → G3 / DISCARD
 
 ### 4. Dataset Capture
 
@@ -289,21 +239,11 @@ Behavior:
 * spacebar triggers multi-angle capture
 * frames stored unprocessed
 
-⸻
+---
 
 ## Edge Learning System
 
-Frames in confidence band:
-
-```
-0.40 ≤ confidence ≤ 0.65
-```
-
-are automatically saved to:
-
-```
-dataset/edge_harvest/
-```
+Frames in the 0.40–0.65 confidence band are automatically saved to `dataset/edge_harvest/` with full telemetry. This creates the raw material for future continuous improvement.
 
 Each entry includes:
 
@@ -312,33 +252,33 @@ Each entry includes:
 * confidence scores
 * timestamp metadata
 
-This forms the active learning feedback loop.
-
-⸻
+---
 
 ## Operator Controls
 
 | Key | Action |
 |-----|--------|
 | g | Log grading disagreement |
-| q | Quit inference loop |
-| space | Capture dataset frame |
+| q | Quit |
+| space | Capture dataset frame (in capture script) |
 
-⸻
+---
 
-## Operational Roadmap
+## Operational Roadmap (Honest Status — June 2026)
 
 | Milestone | Status |
 |-----------|--------|
-| Hardware integration | Complete |
+| Hardware integration + reconnection | Complete |
 | Sandbox validation | Complete |
 | Dataset capture | Active |
+| Dynamic grading policy engine | Complete |
+| Deterministic grading + spatial binding | Complete |
 | Annotation pipeline | Pending |
-| Cloud training | Pending |
-| CoreML deployment | Pending |
-| Continuous learning loop | Pending |
+| Cloud training / model export | Pending |
+| Full CoreML production deployment | Pending (model loading in place) |
+| Closed-loop continuous learning | Pending |
 
-⸻
+---
 
 ## Engineering Logbook
 
@@ -346,38 +286,33 @@ This forms the active learning feedback loop.
 
 Verified Arducam ingestion pipeline and MPS acceleration on Apple Silicon. Established baseline inference stability at 40 FPS.
 
-⸻
-
 ### Day 2 — Requirement Collapse
 
 Facility verification invalidated USDA-style grading assumptions. System restructured around 3-tier operational reality.
-
-⸻
 
 ### Day 3 — Feature Detector Migration
 
 Removed variety-grade coupling. Transitioned to 13-class feature detection model with deterministic grading engine.
 
-⸻
-
 ### Day 4 — Dynamic Schema Deployment
 
 Implemented runtime class discovery. Eliminated inference-time coupling to dataset taxonomy. Introduced IoA spatial binding and operator override telemetry.
 
-⸻
+### Day 5+ — Hardware Hardening & Policy Engine (June 2026)
+
+Deployed robust camera reconnection logic. Built configurable grading policy system. Foundation ready for model training and continuous learning loop.
+
+---
 
 ## Closing Statement
 
-This system does not optimize for model complexity.
+This system optimizes for **operational truth on real hardware**, not model complexity.
 
-It optimizes for operational truth.
-
-A neural network that misreads a fruit is incorrect.
-
-A system that misaligns with the facility is useless.
-
-This architecture enforces that distinction.
+A neural network can be wrong about a fruit.
+A system misaligned with facility rules is useless.
 
 Reality remains the final authority.
+
+**Next steps:** Focus on building a small annotated dataset and getting a working CoreML model deployed. Update this README again once training and annotation are active.
 
 ⸻
