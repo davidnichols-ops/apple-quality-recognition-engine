@@ -10,8 +10,61 @@ import cv2
 import time
 import json
 import os
+import yaml
 from datetime import datetime
 from ultralytics import YOLO
+
+
+def capture_frame_hardened(cap, camera_index=0):
+    """Captures a frame with automatic hardware reconnection logic."""
+    ret, frame = cap.read()
+    
+    # If hardware disconnects or drops a frame
+    if not ret or frame is None:
+        print("[CRITICAL ERROR]: Arducam dropped connection. Initiating hardware reset...")
+        cap.release()
+        
+        while True:
+            time.sleep(2.0)  # Wait 2 seconds before retrying hardware bus
+            print("[RETRYING]: Attempting to re-bind Arducam sensor...")
+            cap = cv2.VideoCapture(camera_index)
+            if cap.isOpened():
+                # Re-apply camera settings after reconnection
+                cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+                cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+                print("[SUCCESS]: Arducam hardware link re-established.")
+                ret, frame = cap.read()
+                if ret and frame is not None:
+                    return cap, frame
+    return cap, frame
+
+
+def load_grading_policy(policy_path="grading_policy.yaml"):
+    """Load grading policy from YAML configuration file."""
+    try:
+        with open(policy_path, 'r') as file:
+            policy = yaml.safe_load(file)
+        
+        # Extract the dynamic severity lists directly from the file
+        mild = set(policy['severity_mapping']['mild_defects'])
+        moderate = set(policy['severity_mapping']['moderate_defects'])
+        severe = set(policy['severity_mapping']['severe_defects'])
+        
+        # Extract rules
+        rules = policy['rules']
+        
+        print(f"[SYSTEM]: Successfully loaded live grading rules from {policy_path}")
+        print(f"[SYSTEM]: Severe triggers: {severe}")
+        return mild, moderate, severe, rules
+    except Exception as e:
+        print(f"[ERROR]: Failed to load grading policy: {e}")
+        print("[SYSTEM]: Falling back to default grading rules")
+        # Return default values if file loading fails
+        return {'z_bruise', 'z_russeting'}, \
+               {'z_scarf_skin', 'z_sunburn', 'z_stem_puncture', 'z_scab', 'z_sooty_blotch_flyspeck'}, \
+               {'z_split_crack', 'z_misshapen', 'z_rot', 'z_insect_damage'}, \
+               {'max_mild_for_g1': 2, 'max_moderate_for_g2': 1, 'area_threshold_g2_pct': 5.0, 'area_threshold_g3_pct': 15.0, 'ioa_binding_threshold': 0.10}
 
 
 def calculate_defect_area(box):
@@ -55,7 +108,7 @@ def calculate_ioa(defect_box, parent_box):
     return intersection / defect_area
 
 
-def compute_grade(defects, parent_area):
+def compute_grade(defects, parent_area, mild_defects, moderate_defects, severe_defects, rules):
     """
     Deterministic scoring function based on defect count, type, and area coverage.
     Returns: Grade string ('G1', 'G2', 'G3') or 'DISCARD'
@@ -63,23 +116,24 @@ def compute_grade(defects, parent_area):
     if not defects:
         return 'G1'
     
-    # Defect severity mapping
-    mild_defects = {'z_bruise', 'z_russeting'}
-    structural_defects = {'z_split_crack', 'z_misshapen', 'z_rot', 'z_insect_damage'}
-    moderate_defects = {'z_scarf_skin', 'z_sunburn', 'z_stem_puncture', 'z_scab', 'z_sooty_blotch_flyspeck'}
-    
     total_defect_area = sum(calculate_defect_area(d['box']) for d in defects)
     area_ratio = total_defect_area / parent_area if parent_area > 0 else 0
     
     # Count by severity
     mild_count = sum(1 for d in defects if d['name'] in mild_defects)
-    structural_count = sum(1 for d in defects if d['name'] in structural_defects)
+    severe_count = sum(1 for d in defects if d['name'] in severe_defects)
     moderate_count = sum(1 for d in defects if d['name'] in moderate_defects)
     
+    # Extract threshold rules
+    max_mild_for_g1 = rules.get('max_mild_for_g1', 2)
+    max_moderate_for_g2 = rules.get('max_moderate_for_g2', 1)
+    area_threshold_g2 = rules.get('area_threshold_g2_pct', 5.0) / 100.0
+    area_threshold_g3 = rules.get('area_threshold_g3_pct', 15.0) / 100.0
+    
     # Grade determination logic
-    if structural_count > 0 or area_ratio > 0.15:
+    if severe_count > 0 or area_ratio > area_threshold_g3:
         return 'G3'
-    elif mild_count > 2 or moderate_count > 1 or area_ratio > 0.05:
+    elif mild_count > max_mild_for_g1 or moderate_count > max_moderate_for_g2 or area_ratio > area_threshold_g2:
         return 'G2'
     else:
         return 'G1'
@@ -151,6 +205,9 @@ def save_edge_harvest_frame(frame, detections, harvest_dir, operator_override=Fa
 def main():
     print("[SYSTEM]: Initializing M4 Edge Sorting Pipeline Engine...")
     
+    # Load grading policy from configuration file
+    MILD_DEFECTS, MODERATE_DEFECTS, SEVERE_DEFECTS, GRADING_RULES = load_grading_policy()
+    
     # Initialize camera with same profile as baseline_verify.py
     cap = cv2.VideoCapture(0)
     
@@ -190,11 +247,7 @@ def main():
     while True:
         start_time = time.time()
         
-        ret, frame = cap.read()
-        
-        if not ret:
-            print("[ERROR]: Could not read frame from camera.")
-            break
+        cap, frame = capture_frame_hardened(cap, camera_index=0)
         
         # Run core inference through Apple Neural Engine
         results = model(frame, conf=0.35, imgsz=1024, verbose=False)
@@ -240,6 +293,8 @@ def main():
                     break
 
         # --- STAGE 3: SPATIAL BINDING LAYER (IoA Override) ---
+        ioa_threshold = GRADING_RULES.get('ioa_binding_threshold', 0.10)
+        
         for defect in defect_boxes:
             defect_box = defect["box"]
             
@@ -252,8 +307,8 @@ def main():
                 # Calculate Intersection-over-Area (IoA) ratio
                 ioa = calculate_ioa(defect_box, parent_box)
                 
-                # Bind if IoA >= 0.10 (10% threshold)
-                if ioa >= 0.10:
+                # Bind if IoA >= threshold from policy
+                if ioa >= ioa_threshold:
                     # Track parent with highest intersection density
                     if ioa > max_ioa:
                         max_ioa = ioa
@@ -265,7 +320,7 @@ def main():
         # --- STAGE 4: DETERMINISTIC GRADING ---
         for parent in parent_boxes:
             parent_area = calculate_defect_area(parent["box"])
-            parent["grade"] = compute_grade(parent["defects"], parent_area)
+            parent["grade"] = compute_grade(parent["defects"], parent_area, MILD_DEFECTS, MODERATE_DEFECTS, SEVERE_DEFECTS, GRADING_RULES)
             
             # Override grade if discard mode active
             if discard_mode:
