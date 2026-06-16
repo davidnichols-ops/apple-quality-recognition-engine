@@ -3,7 +3,7 @@
 Production Local Inference Script
 Apple CoreML Deployment on M4 Neural Engine
 Target: MacBook Air M4 (macOS 26 Tahoe / Darwin 25.5.0)
-Feature Detector Pipeline: 13-Class Architecture
+Feature Detector Pipeline: Dynamic Schema Architecture
 """
 
 import cv2
@@ -179,6 +179,11 @@ def main():
     
     print("[SYSTEM]: M4 Neural Engine backend active. Press 'q' to exit.")
     
+    # Dynamic schema configuration
+    num_classes = len(model.names)
+    print(f"[SYSTEM]: Loaded model with {num_classes} dynamic classes")
+    print(f"[SYSTEM]: Class 0 = apple, Class 1 = unfit_bin_discard, Classes 2-{num_classes-1} = dynamic defects")
+    
     # Edge harvest directory
     harvest_dir = "dataset/edge_harvest"
     
@@ -199,7 +204,7 @@ def main():
         defect_boxes = []
         all_detections = []
 
-        # --- STAGE 1: INSTANCE PARSING (13-Class Paradigm) ---
+        # --- STAGE 1: INSTANCE PARSING (Dynamic Schema Paradigm) ---
         for box in results[0].boxes:
             cls_id = int(box.cls[0])
             coords = list(map(int, box.xyxy[0]))
@@ -213,7 +218,7 @@ def main():
                 parent_boxes.append({"id": cls_id, "name": flat_name, "box": coords, "conf": conf, "defects": []})
             elif cls_id == 1:  # unfit_bin_discard - Discard Trigger
                 discard_triggers.append(detection)
-            elif cls_id >= 2:  # Defect classes (Indices 2-12)
+            elif cls_id >= 2 and cls_id < num_classes:  # Dynamic defect classes (Indices 2 to N)
                 defect_boxes.append(detection)
 
         # --- STAGE 2: DISCARD SEQUENCE CHECK ---
