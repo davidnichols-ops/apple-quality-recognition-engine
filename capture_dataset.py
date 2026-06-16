@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-Production Data Capture Script
+Production Raw Data Capture Script
 Arducam USB Global Shutter Data Acquisition
 Target: MacBook Air M4 (macOS 26 Tahoe / Darwin 25.5.0)
+Pure Feature Harvesting Pipeline - No Classification Logic
 """
 
 import cv2
@@ -12,44 +13,19 @@ from datetime import datetime
 # =========================
 # SYSTEM CONFIGURATION
 # =========================
-DATASET_ROOT = "dataset"
-SHOTS_PER_APPLE = 4
+RAW_INGEST_DIR = "dataset/raw_ingest"
+SHOTS_PER_FRUIT = 4
 CAM_INDEX = 0
 WIDTH, HEIGHT = 1280, 720
 
-# Structured Prefix Mapping to Force Order Symmetry
-VARIETY_MAP = {
-    "zestar": "a_zestar",
-    "redfree": "b_redfree",
-    "grand_gala": "c_grand_gala",
-    "priscilla": "d_priscilla",
-    "freedom": "e_freedom",
-    "sweet_16": "f_sweet_16",
-    "crimson_crisp": "g_crimson_crisp",
-    "spartan": "h_spartan",
-    "macoun": "i_macoun",
-    "snowsweet": "j_snowsweet",
-    "liberty": "k_liberty",
-    "pink_lady": "l_pink_lady",
-    "chieftain": "m_chieftain",
-    "winecrisp": "n_winecrisp",
-    "ludacrisp": "o_ludacrisp",
-    "enterprise": "p_enterprise",
-    "rosalee": "q_rosalee",
-    "evercrisp": "r_evercrisp"
-}
+# Create raw ingest directory
+os.makedirs(RAW_INGEST_DIR, exist_ok=True)
 
-print("Available varieties:", ", ".join(VARIETY_MAP.keys()))
-user_input = input("\nEnter target variety label: ").strip().lower()
+print("[SYSTEM] Raw Feature Harvesting Pipeline Initialized")
+print(f"[INFO] Target directory: {RAW_INGEST_DIR}")
+print(f"[INFO] Resolution: {WIDTH}x{HEIGHT} MJPG")
 
-if user_input not in VARIETY_MAP:
-    raise ValueError(f"Invalid variety. Must be one of {list(VARIETY_MAP.keys())}")
-
-PREFIXED_VARIETY = VARIETY_MAP[user_input]
-NUM_APPLES = int(input("Number of apples to capture: "))
-
-save_dir = os.path.join(DATASET_ROOT, PREFIXED_VARIETY)
-os.makedirs(save_dir, exist_ok=True)
+NUM_FRUITS = int(input("Number of fruits to capture: "))
 
 # =========================
 # HARDWARE OPTICAL CORE
@@ -62,31 +38,32 @@ cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
 if not cap.isOpened():
     raise RuntimeError("Arducam hardware pipeline failed to initialize")
 
-print(f"\n[INFO] Core initialized. Streaming from camera index {CAM_INDEX} at {WIDTH}x{HEIGHT}")
+print(f"\n[INFO] Core initialized. Streaming from camera index {CAM_INDEX}")
 
-apple_id = 0
-while apple_id < NUM_APPLES:
-    print(f"\n[READY] Position apple {apple_id+1}/{NUM_APPLES} on fabric backdrop")
+fruit_id = 0
+while fruit_id < NUM_FRUITS:
+    print(f"\n[READY] Position fruit {fruit_id+1}/{NUM_FRUITS} on fabric backdrop")
     shot_id = 0
     
-    while shot_id < SHOTS_PER_APPLE:
+    while shot_id < SHOTS_PER_FRUIT:
         ret, frame = cap.read()
         if not ret:
             continue
 
         overlay = frame.copy()
-        display_text = f"{PREFIXED_VARIETY.upper()} | Apple {apple_id+1} | View {shot_id+1}/4"
+        display_text = f"RAW INGEST | Fruit {fruit_id+1} | View {shot_id+1}/4"
         cv2.putText(overlay, display_text, (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-        cv2.imshow("Production Data Acquisition Engine", overlay)
+        cv2.imshow("Raw Feature Harvesting Engine", overlay)
 
         key = cv2.waitKey(1) & 0xFF
         
         # SPACEBAR = Capture Exposure
         if key == 32:
-            filename = f"{PREFIXED_VARIETY}_{apple_id:04d}_view_{shot_id}.jpg"
-            path = os.path.join(save_dir, filename)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+            filename = f"raw_{timestamp}_{fruit_id:04d}_view_{shot_id}.jpg"
+            path = os.path.join(RAW_INGEST_DIR, filename)
             cv2.imwrite(path, frame)
-            print(f"[SAVED INTERMEDIATE] -> {path}")
+            print(f"[SAVED] -> {path}")
             shot_id += 1
 
         # ESC = Safe System Interrupt
@@ -96,30 +73,30 @@ while apple_id < NUM_APPLES:
             cv2.destroyAllWindows()
             exit()
 
-    apple_id += 1
-    print(f"[SUCCESS] Unit sequence complete for apple item {apple_id}.")
+    fruit_id += 1
+    print(f"[SUCCESS] Unit sequence complete for fruit item {fruit_id}.")
     
     # --- NO-CLICK WINDOW FOCUS FIX ---
-    if apple_id < NUM_APPLES:
+    if fruit_id < NUM_FRUITS:
         print("[WAIT] Camera loop paused. Press ENTER inside the CAMERA WINDOW to unblock...")
         
-        # Keep updating the display frame to tell the user to swap apples and hit Enter
+        # Keep updating the display frame to tell the user to swap fruits and hit Enter
         while True:
             ret, frame = cap.read()
             if not ret:
                 continue
                 
             overlay = frame.copy()
-            prompt_text1 = f"APPLE {apple_id} COMPLETE."
+            prompt_text1 = f"FRUIT {fruit_id} COMPLETE."
             prompt_text2 = "SWAP FRUIT & PRESS ENTER (IN THIS WINDOW) TO CONTINUE..."
             
             cv2.putText(overlay, prompt_text1, (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
             cv2.putText(overlay, prompt_text2, (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-            cv2.imshow("Production Data Acquisition Engine", overlay)
+            cv2.imshow("Raw Feature Harvesting Engine", overlay)
             
             next_key = cv2.waitKey(1) & 0xFF
             
-            # 13 is the ASCII value for the Carraige Return / ENTER key
+            # 13 is the ASCII value for the Carriage Return / ENTER key
             if next_key == 13: 
                 break
             
@@ -132,4 +109,5 @@ while apple_id < NUM_APPLES:
 
 cap.release()
 cv2.destroyAllWindows()
-print("[METRIC] Batch acquisition sequence completed cleanly.")
+print("[METRIC] Raw batch acquisition sequence completed cleanly.")
+print(f"[INFO] Total raw frames saved to: {RAW_INGEST_DIR}")

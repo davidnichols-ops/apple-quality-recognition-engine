@@ -13,8 +13,8 @@ The architecture shifts from fused category-grade classification to a two-stage 
 │              MACRO PARENT BOX (Class 0: apple)                  │
 │              Universal Fruit Instance Container                  │
 │  ┌──────────────────────────────────────────────────────────┐  │
-│  │           MICRO DEFECT BOXES (Classes 2-12)               │  │
-│  │           z_bruise, z_russeting, z_rot, etc.             │  │
+│  │           MICRO DEFECT BOXES (Classes 2-N)               │  │
+│  │           Dynamic defect array (scales with dataset)     │  │
 │  │  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐                  │  │
 │  │  │Bruise│  │Russet│  │Scab  │  │Rot   │                  │  │
 │  │  └──────┘  └──────┘  └──────┘  └──────┘                  │  │
@@ -25,13 +25,14 @@ The architecture shifts from fused category-grade classification to a two-stage 
 
 **Execution Flow:**
 
-1. **Neural Stage:** YOLO11 detects 13 classes (1 parent, 1 discard trigger, 11 defect types)
-2. **Spatial Binding:** Defect boxes are bound to parent apple boxes via centroid containment
+1. **Neural Stage:** YOLO11 detects dynamic classes (1 parent, 1 discard trigger, N defect types)
+2. **Spatial Binding:** Defect boxes bound to parent apple boxes via Intersection-over-Area (IoA) with 0.10 threshold
 3. **Algorithmic Grading:** Grade computed from defect count, type severity, and area coverage
 4. **Discard Override:** Class 1 (`unfit_bin_discard`) near any cluster triggers immediate DISCARD sequence
 5. **Edge Harvesting:** Frames with volatile confidence (0.40-0.65) auto-save for active learning
+6. **Operator Override:** Press 'g' to manually log line disagreement with model grading
 
-**The Flat Index Paradigm:** A single 13-class array eliminates multi-model synchronization. Post-processing handles the complexity, not the weights.
+**The Dynamic Schema Paradigm:** Defect class count scales based on dataset diversity. Adding or removing defect classes in `data.yaml` requires zero code changes in `local_inference.py`. The runtime auto-detects class count via `len(model.names)` and dynamically adjusts parsing thresholds.
 
 ---
 
@@ -65,9 +66,11 @@ FourCC Frame Hook: cv2.VideoWriter_fourcc(*"MJPG")
 
 ## Class Dictionary Schema
 
-### 13-Class Feature Detector Array
+### Dynamic Feature Detector Array
 
-**Total Operational Footprint:** Exactly 13 Classes (Indices 0-12)
+**Schema Architecture:** Class 0 = apple, Class 1 = unfit_bin_discard, Classes 2-N = dynamic defects
+
+**Current Operational Footprint:** 13 Classes (Indices 0-12)
 
 | Index | Class Token | Type | Function |
 | --- | --- | --- | --- |
@@ -84,6 +87,8 @@ FourCC Frame Hook: cv2.VideoWriter_fourcc(*"MJPG")
 | **10** | z_sooty_blotch_flyspeck | Micro Defect | Moderate surface defect |
 | **11** | z_rot | Micro Defect | Structural/severe defect |
 | **12** | z_insect_damage | Micro Defect | Structural/severe defect |
+
+**Dynamic Scaling:** Add or remove defect classes in `data.yaml` as needed. `local_inference.py` auto-detects class count via `len(model.names)` and adjusts parsing thresholds dynamically. No code changes required when modifying defect taxonomy.
 
 ### Algorithmic Grading Matrix
 
@@ -166,15 +171,55 @@ python local_inference.py
 
 **Edge Harvesting:** Frames with volatile confidence (0.40-0.65) auto-save to `dataset/edge_harvest/` with telemetry JSON for active learning loops.
 
-### Phase 5: High-Speed No-Click Data Capture
+### Phase 5: High-Speed Raw Data Capture
 
-Run localized automated image acquisition using the Arducam global shutter lens.
+Run localized automated image acquisition using the Arducam global shutter lens for pure feature harvesting.
 
 ```bash
 python capture_dataset.py
 ```
 
-**Operational Optimization:** Type target variety and total count. Script locks focus onto camera preview window. Smash **SPACEBAR** 4 times per apple (rotating fruit across axes). Camera window instantly prompts for next apple—swap fruit on dark backdrop and smash **ENTER** directly inside camera viewer. No terminal clicking required.
+**Operational Optimization:** Script captures raw, uncompressed 1280x720 MJPG streams directly to `dataset/raw_ingest/`. No classification or variety bucketing—pure feature harvesting for downstream annotation. Smash **SPACEBAR** 4 times per fruit (rotating across axes). Camera window instantly prompts for next fruit—swap on dark backdrop and smash **ENTER** directly inside camera viewer. No terminal clicking required.
+
+---
+
+## Data Lifecycle Architecture
+
+The production pipeline follows a strict data flow from raw capture to edge deployment:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    DATA LIFECYCLE PIPELINE                        │
+└─────────────────────────────────────────────────────────────────┘
+
+1. RAW CAPTURE (Arducam Global Shutter)
+   └─> capture_dataset.py
+   └─> dataset/raw_ingest/
+   └─> Unlabelled 1280x720 MJPG frames with unique timestamps
+
+2. MANUAL ANNOTATION (Roboflow Cloud Platform)
+   └─> Batch upload raw frames to Roboflow
+   └─> Manual bounding box annotation:
+       • Class 0: apple (parent boxes)
+       • Class 1: unfit_bin_discard (discard triggers)
+       • Classes 2-N: dynamic defect array
+   └─> Export annotated dataset in YOLO format
+
+3. CLOUD TRAINING (Google Colab)
+   └─> Import annotated dataset
+   └─> Train YOLO11 model at 1024×1024 resolution
+   └─> Export weights to CoreML format (.mlpackage)
+   └─> Download best.mlpackage to local environment
+
+4. LOCAL DEPLOYMENT (M4 Neural Engine)
+   └─> local_inference.py loads best.mlpackage
+   └─> Dynamic schema auto-detection via len(model.names)
+   └─> IoA spatial binding (0.10 threshold)
+   └─> Algorithmic grading via compute_grade()
+   └─> Edge harvesting for volatile confidence (0.40-0.65)
+   └─> Operator override via 'g' key for manual logging
+
+```
 
 ---
 
@@ -313,3 +358,25 @@ This shifted local inference logic cutoff boundary from `cls_id < 72` down to `c
   - Enables targeted cloud retraining loops
 
 **Current Status:** Architecture refactored to 13-class paradigm. Code updated, documentation rewritten in Systems-Operational tone. Ready for dataset re-annotation and model retraining.
+
+### 🍏 Day 4: Core Alignment & Production Hardening (June 15, 2026)
+
+**The Dynamic Schema Pivot:** Realized that hardcoding defect class limits creates technical debt. The exact count of skin anomaly classes is volatile and depends on real-world dataset diversity discovered during sorting. Moved to dynamic schema architecture where the runtime auto-detects class count via `len(model.names)` and adjusts parsing thresholds accordingly.
+
+**Infrastructure Hardening:**
+- **Dynamic Schema Abstracting:** Replaced hardcoded `cls_id >= 2` with `cls_id >= 2 and cls_id < num_classes` in `local_inference.py`. Adding or removing defect classes in `data.yaml` now requires zero code changes.
+- **IoA Spatial Binding:** Replaced centroid containment with Intersection-over-Area (IoA) buffer evaluation. Defect boxes binding to parent apples if intersection ratio >= 0.10. Edge case resolution: defects overlapping multiple apples bind to parent with highest intersection density.
+- **Operator Override:** Added 'g' key handler for manual line disagreement logging. Pressing 'g' triggers immediate edge harvest event with `operator_override: true` flag in telemetry JSON.
+
+**Production Capture Purge:**
+- Completely refactored `capture_dataset.py` to pure feature harvesting pipeline.
+- Removed all obsolete grading and multi-class variety bucketing logic.
+- Script now captures raw, uncompressed 1280x720 MJPG streams directly to `dataset/raw_ingest/` with unique timestamps.
+- No classification logic—pure raw frame collection for downstream Roboflow annotation.
+
+**Documentation Traceability:**
+- Updated README.md to reflect dynamic anomaly schema (Class 0 = apple, Class 1 = discard trigger, Classes 2-N = dynamic defects).
+- Added comprehensive Data Lifecycle Architecture section documenting the full pipeline: Raw Capture → Manual Annotation → Cloud Training → Local Deployment.
+- Updated all references from "13-Class" to "Dynamic Schema" to reflect the new architecture.
+
+**Current Status:** All infrastructure hardening complete. Dynamic schema architecture locked in. Production capture pipeline purified. Documentation updated. Ready for dataset re-annotation with new dynamic schema.

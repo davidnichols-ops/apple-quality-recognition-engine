@@ -1,6 +1,7 @@
 # data.yaml
 # Production Specification (Feature Detector Pipeline)
-# Total Classes: 13 (0-12)
+# Dynamic Schema: Class 0 = apple, Class 1 = unfit_bin_discard, Classes 2-N = dynamic defects
+# Total Classes: 13 (0-12) - defect count scales dynamically based on dataset diversity
 
 path: ./apple_dataset
 train: images/train
@@ -15,7 +16,8 @@ names:
   # --- DISCARD TRIGGER ---
   1: unfit_bin_discard
 
-  # --- MICRO DEFECT OVERLAY (Indices 2-12) ---
+  # --- MICRO DEFECT OVERLAY (Dynamic Indices 2-N) ---
+  # Add or remove defect classes below as needed - local_inference.py auto-scales
   2: z_bruise
   3: z_russeting
   4: z_scarf_skin
