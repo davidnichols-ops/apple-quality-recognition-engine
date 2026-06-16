@@ -2,3 +2,4 @@ ultralytics
 coremltools
 opencv-python
 roboflow
+pyyaml

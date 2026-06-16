@@ -10,6 +10,31 @@ import time
 from ultralytics import YOLO
 
 
+def capture_frame_hardened(cap, camera_index=0):
+    """Captures a frame with automatic hardware reconnection logic."""
+    ret, frame = cap.read()
+    
+    # If hardware disconnects or drops a frame
+    if not ret or frame is None:
+        print("[CRITICAL ERROR]: Arducam dropped connection. Initiating hardware reset...")
+        cap.release()
+        
+        while True:
+            time.sleep(2.0)  # Wait 2 seconds before retrying hardware bus
+            print("[RETRYING]: Attempting to re-bind Arducam sensor...")
+            cap = cv2.VideoCapture(camera_index)
+            if cap.isOpened():
+                # Re-apply camera settings after reconnection
+                cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+                cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+                print("[SUCCESS]: Arducam hardware link re-established.")
+                ret, frame = cap.read()
+                if ret and frame is not None:
+                    return cap, frame
+    return cap, frame
+
+
 def main():
     print("[SYSTEM]: Initializing Arducam USB Global Shutter camera on index 0...")
     
@@ -39,11 +64,7 @@ def main():
     while True:
         start_time = time.time()
         
-        ret, frame = cap.read()
-        
-        if not ret:
-            print("[ERROR]: Could not read frame from camera.")
-            break
+        cap, frame = capture_frame_hardened(cap, camera_index=0)
         
         # Run inference at imgsz=640
         results = model(frame, imgsz=640, verbose=False)

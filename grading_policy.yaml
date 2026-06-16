@@ -1,0 +1,25 @@
+# Facility Grading Policy Profile Configuration
+facility_id: "DSM_COLD_STORAGE_01"
+
+severity_mapping:
+  mild_defects:
+    - "z_bruise"
+    - "z_russeting"
+  moderate_defects:
+    - "z_scarf_skin"
+    - "z_sunburn"
+    - "z_stem_puncture"
+    - "z_scab"
+    - "z_sooty_blotch_flyspeck"
+  severe_defects:
+    - "z_split_crack"
+    - "z_misshapen"
+    - "z_rot"
+    - "z_insect_damage"
+
+rules:
+  max_mild_for_g1: 2
+  max_moderate_for_g2: 1
+  area_threshold_g2_pct: 5.0
+  area_threshold_g3_pct: 15.0
+  ioa_binding_threshold: 0.10
