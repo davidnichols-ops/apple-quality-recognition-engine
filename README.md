@@ -302,6 +302,10 @@ Implemented runtime class discovery. Eliminated inference-time coupling to datas
 
 Deployed robust camera reconnection logic. Built configurable grading policy system. Foundation ready for model training and continuous learning loop.
 
+### Day 6 — Household Sandbox Demo (June 16, 2026)
+
+Created household-sandbox-demo branch as a quick test from main. Built a functional proof-of-concept adapting the engine to household plant canopy monitoring using a COCO-pretrained yolo11x.mlpackage. Added demo_inference.py and demo_grading_policy.yaml with interactive mouse-driven defect injection for testing spatial binding and grading logic. Successfully validated core modularity and domain portability with zero changes to the fundamental architecture.
+
 ---
 
 ## Closing Statement
