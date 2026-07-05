@@ -8,7 +8,7 @@ They ask neural networks to perform judgment.
 
 The Apple Quality Recognition Engine is an **edge-first** vision pipeline built for Apple Silicon (M4). It separates perception from decision-making:
 
-- **YOLO11** detects apples, discard triggers, and surface defects.
+- **YOLO26** detects apples, discard triggers, and surface defects.
 - A **deterministic grading engine** (driven by `grading_policy.yaml`) evaluates severity, spatial relationships, and coverage.
 
 **Neural networks identify. Algorithms decide.**
@@ -37,7 +37,7 @@ This separation keeps operational logic out of model weights, making facility ru
 
 Two-stage design:
 
-1. **Neural detection** (YOLO11)
+1. **Neural detection** (YOLO26)
 2. **Deterministic grading engine**
 
 ```
@@ -54,7 +54,7 @@ Two-stage design:
 
 ### Execution Flow (Implemented)
 
-1. **Neural Stage** — YOLO11 detects apples (0), discard triggers (1), defects (2-N).
+1. **Neural Stage** — YOLO26 detects apples (0), discard triggers (1), defects (2-N).
 2. **Spatial Binding** — Defects bound to apples via Intersection-over-Area (IoA ≥ 0.10).
 3. **Grading Engine** — Deterministic scoring from `compute_grade()` using policy file.
 4. **Discard Override** — Class 1 triggers immediate rejection on proximity.
@@ -102,8 +102,8 @@ No inference changes required.
 - Backend: OpenCV (cv2.VideoCapture)
 
 ### Inference Configuration
-- Sandbox: `yolo11n.pt` (validation only)
-- Production: `best.mlpackage` (CoreML)
+- Sandbox: `yolo26n.pt` (validation only)
+- Production: `best.mlpackage` (CoreML, trained from YOLO26x)
 - Sandbox Resolution: 640px
 - Production Resolution: 1024px
 - Execution Backend: Apple Neural Engine (ANE)
@@ -185,7 +185,7 @@ MANUAL ANNOTATION
   → Class 2-N: defects
 
 CLOUD TRAINING
-  → YOLO11 (1024px)
+  → YOLO26x (1024px)
   → Export CoreML (.mlpackage)
 
 EDGE DEPLOYMENT
@@ -309,6 +309,10 @@ Created household-sandbox-demo branch as a quick test from main. Built a functio
 ### Day 7 — Camera Index Bug Fix (July 2026)
 
 Discovered all three production scripts (`capture_dataset.py`, `baseline_verify.py`, `local_inference.py`) hardcoded `CAM_INDEX=0`, which on this MacBook Air M4 maps to the built-in FaceTime camera — not the Arducam OV9782 (which enumerates at index 1). The "Hardware Hardening" milestone was previously validated against the wrong camera. Fixed by adding `camera_utils.py` with auto-detection via `system_profiler` name match + native resolution (1920x1080) probe, with graceful fallback. Re-validated against the actual Arducam hardware.
+
+### Day 8 — YOLO26x Model Pivot (July 2026)
+
+Migrated the entire software stack from YOLO11 to YOLO26 (Ultralytics, launched January 2026). YOLO26 brings NMS-free end-to-end inference, up to 43% faster CPU inference, and CoreML export support via the same familiar Ultralytics interface. Production training target is `yolo26x.pt` (55.7M params, 57.5 mAP COCO); baseline verification uses `yolo26n.pt` (nano variant for fast hardware checks). Required bumping `ultralytics` from 8.3.155 to 8.4.50 (YOLO26 model definitions are not in the 8.3.x pip releases). Updated `environment.yaml`, `requirements.lock.txt`, `baseline_verify.py`, `local_inference.py`, `data.yaml`, and `docs/annotation_sop.md`.
 
 ---
 

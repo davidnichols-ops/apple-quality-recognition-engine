@@ -1,7 +1,7 @@
-# Annotation Standard Operating Procedure — YOLO11 13-Class Dataset
+# Annotation Standard Operating Procedure — YOLO26 13-Class Dataset
 
 > **Scope:** This SOP governs manual labeling of raw frames captured by
-> `capture_dataset.py` (1280×720 MJPG, 4 views per fruit) into the YOLO11
+> `capture_dataset.py` (1280×720 MJPG, 4 views per fruit) into the YOLO26
 > object-detection dataset defined by `data.yaml`.
 
 ---
@@ -134,7 +134,7 @@ This threshold is defined in `grading_policy.yaml` (`ioa_binding_threshold`).
 | Job size | 50 images per job |
 | Reviewer assignment | 10% random sample review |
 | Train / val / test split | 70 / 20 / 10 |
-| Export format | YOLO11 |
+| Export format | YOLO26 |
 | Oriented bounding boxes (OBB) | **OFF** — axis-aligned boxes only |
 
 > **Capture context:** Raw frames arrive from `capture_dataset.py` at

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Baseline Camera Verification Script
-Arducam USB Global Shutter Camera + YOLO11n Inference Test
+Arducam USB Global Shutter Camera + YOLO26n Inference Test
 Target: MacBook Air M4 (macOS 26 Tahoe / Darwin 25.5.0)
 """
 
@@ -58,9 +58,9 @@ def main():
     actual_height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
     print(f"[SYSTEM]: Camera configured at {actual_width}x{actual_height} with MJPG encoding")
     
-    # Load lightweight YOLO11n benchmark model
-    print("[SYSTEM]: Loading YOLO11n baseline model...")
-    model = YOLO("yolo11n.pt")
+    # Load lightweight YOLO26n benchmark model
+    print("[SYSTEM]: Loading YOLO26n baseline model...")
+    model = YOLO("yolo26n.pt")
     
     print("[SYSTEM]: Baseline inference engine active. Press 'q' to exit.")
     
@@ -89,7 +89,7 @@ def main():
             2
         )
         
-        cv2.imshow("Baseline Verification - YOLO11n", annotated_frame)
+        cv2.imshow("Baseline Verification - YOLO26n", annotated_frame)
         
         # Exit on 'q' key press
         if cv2.waitKey(1) & 0xFF == ord('q'):

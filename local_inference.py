@@ -4,6 +4,7 @@ Production Local Inference Script
 Apple CoreML Deployment on M4 Neural Engine
 Target: MacBook Air M4 (macOS 26 Tahoe / Darwin 25.5.0)
 Feature Detector Pipeline: Dynamic Schema Architecture
+Base model: YOLO26x (trained weights exported to best.mlpackage)
 """
 
 import cv2
