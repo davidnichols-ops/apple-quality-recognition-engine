@@ -6,25 +6,23 @@ local_inference.py) previously hardcoded CAM_INDEX=0, which on this
 MacBook Air M4 maps to the built-in FaceTime camera — NOT the Arducam
 OV9782 USB Global Shutter, which enumerates at cv2 index 1.
 
-This module probes system_profiler for an Arducam by name, then maps
-to the correct cv2.VideoCapture index by matching the Arducam's native
-resolution (1920x1080). Falls back gracefully if detection fails.
+This module checks system_profiler for an Arducam by name and returns
+the correct cv2.VideoCapture index WITHOUT opening any camera during
+detection. Opening cameras during detection (e.g. to probe resolution)
+causes macOS AVFoundation to grab the FaceTime camera and light its
+indicator LED, which can interfere with the subsequent production
+camera open. We avoid that entirely.
 
-No external dependencies beyond cv2 and the macOS system_profiler tool.
+No external dependencies beyond the macOS system_profiler tool.
 """
 
 from __future__ import annotations
 
 import subprocess
 
-import cv2
-
 ARDUCAM_KEYWORD = "Arducam"
-ARDUCAM_NATIVE_W = 1920
-ARDUCAM_NATIVE_H = 1080
-FALLBACK_INDEX = 1
+ARDUCAM_INDEX = 0
 BUILTIN_FALLBACK_INDEX = 0
-MAX_PROBE = 4
 
 
 def arducam_connected() -> bool:
@@ -41,17 +39,20 @@ def arducam_connected() -> bool:
         return False
 
 
-def detect_arducam_index(max_probe: int = MAX_PROBE) -> int:
+def detect_arducam_index() -> int:
     """Return the cv2 camera index for the Arducam.
 
     Detection strategy:
       1. Check system_profiler for an Arducam by name.
-      2. If connected, probe cv2 indices 0..max_probe-1 and match by
-         native resolution (1920x1080).
-      3. If connected but not matched by resolution, fall back to
-         FALLBACK_INDEX (1) with a warning.
-      4. If not connected at all, fall back to BUILTIN_FALLBACK_INDEX (0)
+      2. If connected, return ARDUCAM_INDEX (0) — on this MacBook Air
+         M4 the Arducam OV9782 enumerates at cv2 index 0.
+      3. If not connected, fall back to BUILTIN_FALLBACK_INDEX (0)
          with a warning so the script still runs on the built-in webcam.
+
+    We deliberately do NOT probe cv2.VideoCapture indices during
+    detection. Opening cameras during detection causes macOS
+    AVFoundation to grab the FaceTime camera and light its indicator
+    LED, which can interfere with the subsequent production camera open.
     """
     if not arducam_connected():
         print(
@@ -61,21 +62,5 @@ def detect_arducam_index(max_probe: int = MAX_PROBE) -> int:
         )
         return BUILTIN_FALLBACK_INDEX
 
-    for i in range(max_probe):
-        cap = cv2.VideoCapture(i)
-        if not cap.isOpened():
-            cap.release()
-            continue
-        w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        cap.release()
-        if w == ARDUCAM_NATIVE_W and h == ARDUCAM_NATIVE_H:
-            print(f"[CAMERA] Arducam detected at cv2 index {i} ({w}x{h}).")
-            return i
-
-    print(
-        "[CAMERA] WARNING: Arducam is connected but could not be matched "
-        f"by resolution at cv2 indices 0-{max_probe - 1}. "
-        f"Falling back to index {FALLBACK_INDEX}."
-    )
-    return FALLBACK_INDEX
+    print(f"[CAMERA] Arducam detected. Using cv2 index {ARDUCAM_INDEX}.")
+    return ARDUCAM_INDEX
