@@ -1,0 +1,27 @@
+# Apple Quality Recognition Engine — reproducible environment
+# Devin snapshot-setup blueprint format (conda-env YAML)
+# Target: MacBook Air M4 (Apple Silicon), macOS 26 Tahoe
+# Python 3.11 chosen for coremltools ANE/CoreML compatibility.
+#
+# Reproduce with:
+#   conda env create -f environment.yaml
+#   pip install -r requirements.lock.txt --no-deps
+name: aqre
+
+channels:
+  - conda-forge
+  - nodefaults
+
+dependencies:
+  - python=3.11
+  - pip>=24.0
+  - pip:
+      - ultralytics==8.3.155
+      - coremltools==9.0
+      - opencv-python==4.11.0.86
+      - roboflow==1.3.12
+      - pyyaml==6.0.3
+      # Pin torch/torchvision to a coremltools-9.0-tested combination
+      # (coremltools 9.0 was validated against torch 2.7.0).
+      - torch==2.7.0
+      - torchvision==0.22.0
