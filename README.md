@@ -25,7 +25,7 @@ This separation keeps operational logic out of model weights, making facility ru
 | Dynamic Schema         | Complete   | Defect taxonomy loads from policy file at runtime. |
 | Facility Ground Truth  | Complete   | Grading rules defined in `grading_policy.yaml`. |
 | Edge-Native Execution  | Complete   | Runs on Apple Neural Engine via CoreML / Ultralytics. |
-| Hardware Hardening     | Complete   | Automatic camera reconnection on Arducam drops. |
+| Hardware Hardening     | Complete   | Automatic camera reconnection on Arducam drops. Camera index auto-detection via `camera_utils.py` (VID/PID + native resolution match). |
 | Operator Authority     | Complete   | Telemetry capture for human overrides. |
 | Active Learning Loop   | Partial    | Low-confidence frames are harvested (full loop pending). |
 
@@ -305,6 +305,10 @@ Deployed robust camera reconnection logic. Built configurable grading policy sys
 ### Day 6 — Household Sandbox Demo (June 16, 2026)
 
 Created household-sandbox-demo branch as a quick test from main. Built a functional proof-of-concept adapting the engine to household plant canopy monitoring using a COCO-pretrained yolo11x.mlpackage. Added demo_inference.py and demo_grading_policy.yaml with interactive mouse-driven defect injection for testing spatial binding and grading logic. Successfully validated core modularity and domain portability with zero changes to the fundamental architecture.
+
+### Day 7 — Camera Index Bug Fix (July 2026)
+
+Discovered all three production scripts (`capture_dataset.py`, `baseline_verify.py`, `local_inference.py`) hardcoded `CAM_INDEX=0`, which on this MacBook Air M4 maps to the built-in FaceTime camera — not the Arducam OV9782 (which enumerates at index 1). The "Hardware Hardening" milestone was previously validated against the wrong camera. Fixed by adding `camera_utils.py` with auto-detection via `system_profiler` name match + native resolution (1920x1080) probe, with graceful fallback. Re-validated against the actual Arducam hardware.
 
 ---
 

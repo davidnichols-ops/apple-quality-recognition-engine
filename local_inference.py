@@ -14,6 +14,8 @@ import yaml
 from datetime import datetime
 from ultralytics import YOLO
 
+from camera_utils import detect_arducam_index
+
 
 def capture_frame_hardened(cap, camera_index=0):
     """Captures a frame with automatic hardware reconnection logic."""
@@ -208,8 +210,9 @@ def main():
     # Load grading policy from configuration file
     MILD_DEFECTS, MODERATE_DEFECTS, SEVERE_DEFECTS, GRADING_RULES = load_grading_policy()
     
-    # Initialize camera with same profile as baseline_verify.py
-    cap = cv2.VideoCapture(0)
+    # Initialize camera with auto-detected index (matches baseline_verify.py)
+    cam_index = detect_arducam_index()
+    cap = cv2.VideoCapture(cam_index)
     
     if not cap.isOpened():
         print("[ERROR]: Failed to open camera. Check index or macOS permissions.")
@@ -247,7 +250,7 @@ def main():
     while True:
         start_time = time.time()
         
-        cap, frame = capture_frame_hardened(cap, camera_index=0)
+        cap, frame = capture_frame_hardened(cap, camera_index=cam_index)
         
         # Run core inference through Apple Neural Engine
         results = model(frame, conf=0.35, imgsz=1024, verbose=False)

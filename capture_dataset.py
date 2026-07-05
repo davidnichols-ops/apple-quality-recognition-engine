@@ -10,12 +10,14 @@ import cv2
 import os
 from datetime import datetime
 
+from camera_utils import detect_arducam_index
+
 # =========================
 # SYSTEM CONFIGURATION
 # =========================
 RAW_INGEST_DIR = "dataset/raw_ingest"
 SHOTS_PER_FRUIT = 4
-CAM_INDEX = 0
+CAM_INDEX = detect_arducam_index()
 WIDTH, HEIGHT = 1280, 720
 
 # Create raw ingest directory

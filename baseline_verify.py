@@ -9,6 +9,8 @@ import cv2
 import time
 from ultralytics import YOLO
 
+from camera_utils import detect_arducam_index
+
 
 def capture_frame_hardened(cap, camera_index=0):
     """Captures a frame with automatic hardware reconnection logic."""
@@ -36,10 +38,11 @@ def capture_frame_hardened(cap, camera_index=0):
 
 
 def main():
-    print("[SYSTEM]: Initializing Arducam USB Global Shutter camera on index 0...")
-    
-    # Initialize camera on index 0
-    cap = cv2.VideoCapture(0)
+    cam_index = detect_arducam_index()
+    print(f"[SYSTEM]: Initializing Arducam USB Global Shutter camera on index {cam_index}...")
+
+    # Initialize camera with auto-detected index
+    cap = cv2.VideoCapture(cam_index)
     
     if not cap.isOpened():
         print("[ERROR]: Failed to open camera. Check index or macOS permissions.")
@@ -64,7 +67,7 @@ def main():
     while True:
         start_time = time.time()
         
-        cap, frame = capture_frame_hardened(cap, camera_index=0)
+        cap, frame = capture_frame_hardened(cap, camera_index=cam_index)
         
         # Run inference at imgsz=640
         results = model(frame, imgsz=640, verbose=False)
