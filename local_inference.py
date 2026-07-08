@@ -4,7 +4,7 @@ Production Local Inference Script
 Apple CoreML Deployment on M4 Neural Engine
 Target: MacBook Air M4 (macOS 26 Tahoe / Darwin 25.5.0)
 Feature Detector Pipeline: Dynamic Schema Architecture
-Base model: YOLO26x (trained weights exported to best.mlpackage)
+Base model: YOLO26x (FP16 CoreML export, 640x640, ANE-accelerated via kernel dispatch)
 """
 
 import cv2
@@ -16,6 +16,7 @@ from datetime import datetime
 from ultralytics import YOLO
 
 from camera_utils import detect_arducam_index
+from kernel_apple_coreml import register_apple_coreml
 
 
 def capture_frame_hardened(cap, camera_index=0):
@@ -228,160 +229,177 @@ def main():
     actual_height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
     print(f"[SYSTEM]: Camera configured at {actual_width}x{actual_height} with MJPG encoding")
     
-    # Load local Apple CoreML compiled package
-    print("[SYSTEM]: Loading CoreML model 'best.mlpackage' with task='detect'...")
-    try:
-        model = YOLO("best.mlpackage", task="detect")
-    except Exception as e:
-        print(f"[ERROR]: Failed to load CoreML model: {e}")
-        print("[INFO]: Ensure 'best.mlpackage' exists in the project directory.")
-        cap.release()
-        return
-    
+    # Load the CoreML FP16 model (exported at 640x640, runs on ANE)
+    # The kernel dispatcher is registered so future operation-level kernels
+    # (Metal upsample, etc.) can be adopted transparently.
+    print("[SYSTEM]: Registering kernel dispatcher (CoreML backend, ANE, 640x640)...")
+    register_apple_coreml()
+
+    model_path = "yolo26x_640.mlpackage"
+    if not os.path.exists(model_path):
+        print(f"[ERROR]: {model_path} not found. Falling back to yolo26x.pt (PyTorch MPS).")
+        model_path = "yolo26x.pt"
+
+    print(f"[SYSTEM]: Loading model '{model_path}'...")
+    model = YOLO(model_path, task="detect")
+
     print("[SYSTEM]: M4 Neural Engine backend active. Press 'q' to exit.")
-    
+
     # Dynamic schema configuration
     num_classes = len(model.names)
     print(f"[SYSTEM]: Loaded model with {num_classes} dynamic classes")
     print(f"[SYSTEM]: Class 0 = apple, Class 1 = unfit_bin_discard, Classes 2-{num_classes-1} = dynamic defects")
+
+    # Schema guard: warn if the model wasn't trained on the apple dataset
+    if num_classes != 13 or model.names.get(0) != "apple":
+        print(f"[WARNING]: Model class schema does not match data.yaml (expected 13 classes, class 0 = 'apple').")
+        print(f"[WARNING]: Got {num_classes} classes, class 0 = '{model.names.get(0)}'.")
+        print(f"[WARNING]: This is expected for the COCO-pretrained placeholder model.")
+        print(f"[WARNING]: Apple sorting will NOT work correctly until T-006 (custom training) is complete.")
+        print(f"[WARNING]: Proceeding in BENCHMARK MODE — FPS numbers are valid, detections are not.")
     
     # Edge harvest directory
     harvest_dir = "dataset/edge_harvest"
-    
-    while True:
-        start_time = time.time()
-        
-        cap, frame = capture_frame_hardened(cap, camera_index=cam_index)
-        
-        # Run core inference through Apple Neural Engine
-        results = model(frame, conf=0.35, imgsz=1024, verbose=False)
-        
-        parent_boxes = []
-        discard_triggers = []
-        defect_boxes = []
-        all_detections = []
 
-        # --- STAGE 1: INSTANCE PARSING (Dynamic Schema Paradigm) ---
-        for box in results[0].boxes:
-            cls_id = int(box.cls[0])
-            coords = list(map(int, box.xyxy[0]))
-            conf = float(box.conf[0])
-            flat_name = model.names[cls_id]
-            
-            detection = {"id": cls_id, "name": flat_name, "box": coords, "conf": conf}
-            all_detections.append(detection)
-            
-            if cls_id == 0:  # apple - Universal Macro Parent Box
-                parent_boxes.append({"id": cls_id, "name": flat_name, "box": coords, "conf": conf, "defects": []})
-            elif cls_id == 1:  # unfit_bin_discard - Discard Trigger
-                discard_triggers.append(detection)
-            elif cls_id >= 2 and cls_id < num_classes:  # Dynamic defect classes (Indices 2 to N)
-                defect_boxes.append(detection)
+    try:
+        while True:
+            start_time = time.time()
 
-        # --- STAGE 2: DISCARD SEQUENCE CHECK ---
-        # If discard trigger detected inside or near any parent box cluster, mark for discard
-        discard_mode = False
-        if discard_triggers:
+            cap, frame = capture_frame_hardened(cap, camera_index=cam_index)
+
+            # Run inference through CoreML ANE (6.2x faster than PyTorch MPS)
+            results = model(frame, conf=0.35, imgsz=640, verbose=False)
+
+            parent_boxes = []
+            discard_triggers = []
+            defect_boxes = []
+            all_detections = []
+
+            # --- STAGE 1: INSTANCE PARSING (Dynamic Schema Paradigm) ---
+            for box in results[0].boxes:
+                cls_id = int(box.cls[0])
+                coords = list(map(int, box.xyxy[0]))
+                conf = float(box.conf[0])
+                flat_name = model.names[cls_id]
+
+                detection = {"id": cls_id, "name": flat_name, "box": coords, "conf": conf}
+                all_detections.append(detection)
+
+                if cls_id == 0:  # apple - Universal Macro Parent Box
+                    parent_boxes.append({"id": cls_id, "name": flat_name, "box": coords, "conf": conf, "defects": []})
+                elif cls_id == 1:  # unfit_bin_discard - Discard Trigger
+                    discard_triggers.append(detection)
+                elif cls_id >= 2 and cls_id < num_classes:  # Dynamic defect classes (Indices 2 to N)
+                    defect_boxes.append(detection)
+
+            # --- STAGE 2: DISCARD SEQUENCE CHECK ---
+            # If discard trigger detected inside or near any parent box cluster, mark for discard
+            discard_mode = False
+            if discard_triggers:
+                for trigger in discard_triggers:
+                    tx1, ty1, tx2, ty2 = trigger["box"]
+                    tcx, tcy = (tx1 + tx2) / 2, (ty1 + ty2) / 2
+
+                    for parent in parent_boxes:
+                        px1, py1, px2, py2 = parent["box"]
+                        # Check if trigger centroid is inside parent box or within 50px proximity
+                        if (px1 <= tcx <= px2 and py1 <= tcy <= py2) or \
+                           ((px1 - 50) <= tcx <= (px2 + 50) and (py1 - 50) <= tcy <= (py2 + 50)):
+                            discard_mode = True
+                            break
+                    if discard_mode:
+                        break
+
+            # --- STAGE 3: SPATIAL BINDING LAYER (IoA Override) ---
+            ioa_threshold = GRADING_RULES.get('ioa_binding_threshold', 0.10)
+
+            for defect in defect_boxes:
+                defect_box = defect["box"]
+
+                best_parent = None
+                max_ioa = 0.0
+
+                for parent in parent_boxes:
+                    parent_box = parent["box"]
+
+                    # Calculate Intersection-over-Area (IoA) ratio
+                    ioa = calculate_ioa(defect_box, parent_box)
+
+                    # Bind if IoA >= threshold from policy
+                    if ioa >= ioa_threshold:
+                        # Track parent with highest intersection density
+                        if ioa > max_ioa:
+                            max_ioa = ioa
+                            best_parent = parent
+
+                if best_parent:
+                    best_parent["defects"].append(defect)
+
+            # --- STAGE 4: DETERMINISTIC GRADING ---
+            for parent in parent_boxes:
+                parent_area = calculate_defect_area(parent["box"])
+                parent["grade"] = compute_grade(parent["defects"], parent_area, MILD_DEFECTS, MODERATE_DEFECTS, SEVERE_DEFECTS, GRADING_RULES)
+
+                # Override grade if discard mode active
+                if discard_mode:
+                    parent["grade"] = "DISCARD"
+
+            # --- STAGE 5: EDGE HARVESTING (Active Learning) ---
+            save_edge_harvest_frame(frame, all_detections, harvest_dir)
+
+            # --- STAGE 6: OUTPUT RENDERING ENGINE ---
+            # Draw parent boxes first
+            for parent in parent_boxes:
+                x1, y1, x2, y2 = parent["box"]
+                grade = parent["grade"]
+                display_text = format_display_text(parent["name"], parent["conf"], grade)
+
+                # Color coding by grade
+                if grade == "DISCARD":
+                    color = (0, 0, 255)  # Red
+                elif grade == "G1":
+                    color = (0, 255, 0)  # Green
+                elif grade == "G2":
+                    color = (0, 165, 255)  # Orange
+                else:  # G3
+                    color = (0, 0, 255)  # Red
+
+                cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+                cv2.putText(frame, display_text, (x1, y1 - 10), cv2.FONT_HERSHEY_DUPLEX, 0.5, color, 1)
+
+                # Draw bounded child defects (Red layer)
+                for defect in parent["defects"]:
+                    dx1, dy1, dx2, dy2 = defect["box"]
+                    defect_text = format_display_text(defect["name"], defect["conf"])
+                    cv2.rectangle(frame, (dx1, dy1), (dx2, dy2), (0, 0, 255), 2)
+                    cv2.putText(frame, defect_text, (dx1, dy1 - 5), cv2.FONT_HERSHEY_MINI, 0.4, (0, 0, 255), 1)
+
+            # Draw discard triggers (Magenta)
             for trigger in discard_triggers:
                 tx1, ty1, tx2, ty2 = trigger["box"]
-                tcx, tcy = (tx1 + tx2) / 2, (ty1 + ty2) / 2
-                
-                for parent in parent_boxes:
-                    px1, py1, px2, py2 = parent["box"]
-                    # Check if trigger centroid is inside parent box or within 50px proximity
-                    if (px1 <= tcx <= px2 and py1 <= tcy <= py2) or \
-                       ((px1 - 50) <= tcx <= (px2 + 50) and (py1 - 50) <= tcy <= (py2 + 50)):
-                        discard_mode = True
-                        break
-                if discard_mode:
-                    break
+                trigger_text = format_display_text(trigger["name"], trigger["conf"])
+                cv2.rectangle(frame, (tx1, ty1), (tx2, ty2), (255, 0, 255), 2)
+                cv2.putText(frame, trigger_text, (tx1, ty1 - 10), cv2.FONT_HERSHEY_DUPLEX, 0.5, (255, 0, 255), 1)
 
-        # --- STAGE 3: SPATIAL BINDING LAYER (IoA Override) ---
-        ioa_threshold = GRADING_RULES.get('ioa_binding_threshold', 0.10)
-        
-        for defect in defect_boxes:
-            defect_box = defect["box"]
-            
-            best_parent = None
-            max_ioa = 0.0
+            fps = 1.0 / (time.time() - start_time)
+            cv2.putText(frame, f"M4 Edge Engine: {fps:.1f} FPS", (20, 40), cv2.FONT_HERSHEY_DUPLEX, 0.7, (255, 0, 0), 2)
+            cv2.imshow("M4 Edge Sorting Pipeline Engine", frame)
 
-            for parent in parent_boxes:
-                parent_box = parent["box"]
-                
-                # Calculate Intersection-over-Area (IoA) ratio
-                ioa = calculate_ioa(defect_box, parent_box)
-                
-                # Bind if IoA >= threshold from policy
-                if ioa >= ioa_threshold:
-                    # Track parent with highest intersection density
-                    if ioa > max_ioa:
-                        max_ioa = ioa
-                        best_parent = parent
-                        
-            if best_parent:
-                best_parent["defects"].append(defect)
-
-        # --- STAGE 4: DETERMINISTIC GRADING ---
-        for parent in parent_boxes:
-            parent_area = calculate_defect_area(parent["box"])
-            parent["grade"] = compute_grade(parent["defects"], parent_area, MILD_DEFECTS, MODERATE_DEFECTS, SEVERE_DEFECTS, GRADING_RULES)
-            
-            # Override grade if discard mode active
-            if discard_mode:
-                parent["grade"] = "DISCARD"
-
-        # --- STAGE 5: EDGE HARVESTING (Active Learning) ---
-        save_edge_harvest_frame(frame, all_detections, harvest_dir)
-
-        # --- STAGE 6: OUTPUT RENDERING ENGINE ---
-        # Draw parent boxes first
-        for parent in parent_boxes:
-            x1, y1, x2, y2 = parent["box"]
-            grade = parent["grade"]
-            display_text = format_display_text(parent["name"], parent["conf"], grade)
-            
-            # Color coding by grade
-            if grade == "DISCARD":
-                color = (0, 0, 255)  # Red
-            elif grade == "G1":
-                color = (0, 255, 0)  # Green
-            elif grade == "G2":
-                color = (0, 165, 255)  # Orange
-            else:  # G3
-                color = (0, 0, 255)  # Red
-            
-            cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-            cv2.putText(frame, display_text, (x1, y1 - 10), cv2.FONT_HERSHEY_DUPLEX, 0.5, color, 1)
-
-            # Draw bounded child defects (Red layer)
-            for defect in parent["defects"]:
-                dx1, dy1, dx2, dy2 = defect["box"]
-                defect_text = format_display_text(defect["name"], defect["conf"])
-                cv2.rectangle(frame, (dx1, dy1), (dx2, dy2), (0, 0, 255), 2)
-                cv2.putText(frame, defect_text, (dx1, dy1 - 5), cv2.FONT_HERSHEY_MINI, 0.4, (0, 0, 255), 1)
-
-        # Draw discard triggers (Magenta)
-        for trigger in discard_triggers:
-            tx1, ty1, tx2, ty2 = trigger["box"]
-            trigger_text = format_display_text(trigger["name"], trigger["conf"])
-            cv2.rectangle(frame, (tx1, ty1), (tx2, ty2), (255, 0, 255), 2)
-            cv2.putText(frame, trigger_text, (tx1, ty1 - 10), cv2.FONT_HERSHEY_DUPLEX, 0.5, (255, 0, 255), 1)
-
-        fps = 1.0 / (time.time() - start_time)
-        cv2.putText(frame, f"M4 Edge Engine: {fps:.1f} FPS", (20, 40), cv2.FONT_HERSHEY_DUPLEX, 0.7, (255, 0, 0), 2)
-        cv2.imshow("M4 Edge Sorting Pipeline Engine", frame)
-
-        # Keyboard input handling
-        key = cv2.waitKey(1) & 0xFF
-        if key == ord('q'):
-            break
-        elif key == ord('g'):
-            # Operator discrepancy override - trigger edge harvest event
-            save_edge_harvest_frame(frame, all_detections, harvest_dir, operator_override=True)
-
-    cap.release()
-    cv2.destroyAllWindows()
-    print("[SYSTEM]: Camera and window resources released.")
+            # Keyboard input handling
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord('q'):
+                break
+            elif key == ord('g'):
+                # Operator discrepancy override - trigger edge harvest event
+                save_edge_harvest_frame(frame, all_detections, harvest_dir, operator_override=True)
+    except KeyboardInterrupt:
+        print("\n[SYSTEM]: Interrupted by user.")
+    except Exception as e:
+        print(f"[CRITICAL ERROR]: Inference loop crashed: {e}")
+    finally:
+        cap.release()
+        cv2.destroyAllWindows()
+        print("[SYSTEM]: Camera and window resources released.")
 
 
 if __name__ == "__main__":

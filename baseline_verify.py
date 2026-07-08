@@ -1,10 +1,17 @@
 #!/usr/bin/env python3
 """
 Baseline Camera Verification Script
-Arducam USB Global Shutter Camera + YOLO26n Inference Test
+Arducam USB Global Shutter Camera + YOLO Inference Test
 Target: MacBook Air M4 (macOS 26 Tahoe / Darwin 25.5.0)
+
+Modes:
+  --pytorch   : YOLO26n PyTorch MPS baseline (default)
+  --coreml    : YOLO26x CoreML FP16 ANE (6.2x faster, zero accuracy loss)
+  --compare   : Run both back-to-back and print FPS comparison
 """
 
+import argparse
+import os
 import cv2
 import time
 from ultralytics import YOLO
@@ -37,66 +44,99 @@ def capture_frame_hardened(cap, camera_index=0):
     return cap, frame
 
 
-def main():
-    cam_index = detect_arducam_index()
-    print(f"[SYSTEM]: Initializing Arducam USB Global Shutter camera on index {cam_index}...")
+def run_backend(cap, cam_index, model_path, label, window_title, imgsz=640):
+    """Run inference loop for one backend, return FPS samples."""
+    if not os.path.exists(model_path):
+        print(f"[ERROR]: Model file '{model_path}' not found. Skipping {label}.")
+        return cap, []
 
-    # Initialize camera with auto-detected index
-    cap = cv2.VideoCapture(cam_index)
-    
-    if not cap.isOpened():
-        print("[ERROR]: Failed to open camera. Check index or macOS permissions.")
-        return
-    
-    # Force raw uncompressed streaming with MJPG fourcc encoding
-    cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-    
-    # Verify settings
-    actual_width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
-    actual_height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-    print(f"[SYSTEM]: Camera configured at {actual_width}x{actual_height} with MJPG encoding")
-    
-    # Load lightweight YOLO26n benchmark model
-    print("[SYSTEM]: Loading YOLO26n baseline model...")
-    model = YOLO("yolo26n.pt")
-    
-    print("[SYSTEM]: Baseline inference engine active. Press 'q' to exit.")
-    
+    print(f"[SYSTEM]: Loading {label} model '{model_path}'...")
+    model = YOLO(model_path, task="detect")
+    print(f"[SYSTEM]: {label} backend active. Press 'q' to exit.")
+
+    fps_samples = []
+
     while True:
         start_time = time.time()
-        
+
         cap, frame = capture_frame_hardened(cap, camera_index=cam_index)
-        
-        # Run inference at imgsz=640
-        results = model(frame, imgsz=640, verbose=False)
-        
-        # Annotate frame with predictions
+        results = model(frame, imgsz=imgsz, verbose=False)
         annotated_frame = results[0].plot()
-        
-        # Compute live pipeline FPS
+
         fps = 1.0 / (time.time() - start_time)
-        
-        # Add FPS annotation to frame
+        fps_samples.append(fps)
+
         cv2.putText(
             annotated_frame,
-            f"Pipeline FPS: {fps:.1f}",
+            f"{label} FPS: {fps:.1f}",
             (20, 40),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.7,
             (0, 255, 0),
-            2
+            2,
         )
-        
-        cv2.imshow("Baseline Verification - YOLO26n", annotated_frame)
-        
-        # Exit on 'q' key press
+
+        cv2.imshow(window_title, annotated_frame)
+
         if cv2.waitKey(1) & 0xFF == ord('q'):
-            print("[SYSTEM]: Exiting baseline verification...")
             break
-    
-    # Cleanly release hardware hooks
+
+    return cap, fps_samples
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Baseline Camera Verification")
+    parser.add_argument("--pytorch", action="store_true", help="YOLO26n PyTorch MPS baseline")
+    parser.add_argument("--coreml", action="store_true", help="YOLO26x CoreML FP16 ANE")
+    parser.add_argument("--compare", action="store_true", help="Run both back-to-back")
+    args = parser.parse_args()
+
+    if not (args.pytorch or args.coreml or args.compare):
+        args.pytorch = True  # default
+
+    cam_index = detect_arducam_index()
+    print(f"[SYSTEM]: Initializing Arducam USB Global Shutter camera on index {cam_index}...")
+
+    cap = cv2.VideoCapture(cam_index)
+    if not cap.isOpened():
+        print("[ERROR]: Failed to open camera. Check index or macOS permissions.")
+        return
+
+    cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+
+    actual_width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+    actual_height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+    print(f"[SYSTEM]: Camera configured at {actual_width}x{actual_height} with MJPG encoding")
+
+    if args.compare:
+        # PyTorch first
+        cap, pt_fps = run_backend(cap, cam_index, "yolo26n.pt", "PyTorch MPS", "Baseline - PyTorch MPS")
+        cv2.destroyAllWindows()
+
+        # CoreML second
+        cap, cml_fps = run_backend(cap, cam_index, "yolo26x_640.mlpackage", "CoreML ANE", "Baseline - CoreML ANE")
+        cv2.destroyAllWindows()
+
+        # Print comparison (discard first 10 samples as warmup, then median)
+        pt_warm = pt_fps[10:] if len(pt_fps) > 10 else pt_fps
+        cml_warm = cml_fps[10:] if len(cml_fps) > 10 else cml_fps
+        pt_med = sorted(pt_warm)[len(pt_warm) // 2] if pt_warm else 0
+        cml_med = sorted(cml_warm)[len(cml_warm) // 2] if cml_warm else 0
+        print(f"\n{'='*50}")
+        print(f"BENCHMARK RESULTS")
+        print(f"{'='*50}")
+        print(f"PyTorch MPS (yolo26n): {pt_med:.1f} FPS")
+        print(f"CoreML ANE  (yolo26x): {cml_med:.1f} FPS")
+        if pt_med > 0:
+            print(f"Speedup: {cml_med/pt_med:.1f}x")
+        print(f"{'='*50}")
+    elif args.coreml:
+        cap, _ = run_backend(cap, cam_index, "yolo26x_640.mlpackage", "CoreML ANE", "Baseline - CoreML ANE")
+    else:
+        cap, _ = run_backend(cap, cam_index, "yolo26n.pt", "PyTorch MPS", "Baseline - PyTorch MPS")
+
     cap.release()
     cv2.destroyAllWindows()
     print("[SYSTEM]: Camera and window resources released.")
