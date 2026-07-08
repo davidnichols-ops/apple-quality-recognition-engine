@@ -187,12 +187,12 @@ def save_edge_harvest_frame(frame, detections, harvest_dir, operator_override=Fa
     or if operator override is triggered.
     """
     volatile_detections = [d for d in detections if 0.40 <= d['conf'] <= 0.65]
-    
+
     # Only save if volatile detections exist OR operator override is triggered
     if not volatile_detections and not operator_override:
         return
-    
-    # Create harvest directory if it doesn't exist
+
+    # Create harvest directory only when we actually have something to save
     os.makedirs(harvest_dir, exist_ok=True)
     
     # Generate timestamp-based filename
@@ -232,6 +232,8 @@ def main():
     parser = argparse.ArgumentParser(description="Apple Quality Recognition Engine - Production Inference")
     parser.add_argument("--policy", default="grading_policy.yaml",
                         help="Path to grading policy YAML file (default: grading_policy.yaml)")
+    parser.add_argument("--no-display", action="store_true",
+                        help="Skip cv2.imshow for headless benchmarking (faster FPS)")
     args = parser.parse_args()
 
     print("[SYSTEM]: Initializing M4 Edge Sorting Pipeline Engine...")
@@ -295,7 +297,8 @@ def main():
             cap, frame = capture_frame_hardened(cap, camera_index=cam_index)
 
             # Run inference through CoreML ANE (6.2x faster than PyTorch MPS)
-            results = model(frame, conf=0.35, imgsz=640, verbose=False)
+            # stream=True avoids building a full Results list — returns a generator
+            results = model(frame, conf=0.35, imgsz=640, verbose=False, stream=True)
 
             parent_boxes = []
             discard_triggers = []
@@ -303,7 +306,9 @@ def main():
             all_detections = []
 
             # --- STAGE 1: INSTANCE PARSING (Dynamic Schema Paradigm) ---
-            for box in results[0].boxes:
+            # stream=True returns a generator; grab the single result
+            result = next(results)
+            for box in result.boxes:
                 cls_id = int(box.cls[0])
                 coords = list(map(int, box.xyxy[0]))
                 conf = float(box.conf[0])
@@ -375,50 +380,56 @@ def main():
             save_edge_harvest_frame(frame, all_detections, harvest_dir)
 
             # --- STAGE 6: OUTPUT RENDERING ENGINE ---
-            # Draw parent boxes first
-            for parent in parent_boxes:
-                x1, y1, x2, y2 = parent["box"]
-                grade = parent["grade"]
-                display_text = format_display_text(parent["name"], parent["conf"], grade)
-
-                # Color coding by grade
-                if grade == "DISCARD":
-                    color = (0, 0, 255)  # Red
-                elif grade == "G1":
-                    color = (0, 255, 0)  # Green
-                elif grade == "G2":
-                    color = (0, 165, 255)  # Orange
-                else:  # G3
-                    color = (0, 0, 255)  # Red
-
-                cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-                cv2.putText(frame, display_text, (x1, y1 - 10), cv2.FONT_HERSHEY_DUPLEX, 0.5, color, 1)
-
-                # Draw bounded child defects (Red layer)
-                for defect in parent["defects"]:
-                    dx1, dy1, dx2, dy2 = defect["box"]
-                    defect_text = format_display_text(defect["name"], defect["conf"])
-                    cv2.rectangle(frame, (dx1, dy1), (dx2, dy2), (0, 0, 255), 2)
-                    cv2.putText(frame, defect_text, (dx1, dy1 - 5), cv2.FONT_HERSHEY_MINI, 0.4, (0, 0, 255), 1)
-
-            # Draw discard triggers (Magenta)
-            for trigger in discard_triggers:
-                tx1, ty1, tx2, ty2 = trigger["box"]
-                trigger_text = format_display_text(trigger["name"], trigger["conf"])
-                cv2.rectangle(frame, (tx1, ty1), (tx2, ty2), (255, 0, 255), 2)
-                cv2.putText(frame, trigger_text, (tx1, ty1 - 10), cv2.FONT_HERSHEY_DUPLEX, 0.5, (255, 0, 255), 1)
-
             fps = 1.0 / (time.time() - start_time)
-            cv2.putText(frame, f"M4 Edge Engine: {fps:.1f} FPS", (20, 40), cv2.FONT_HERSHEY_DUPLEX, 0.7, (255, 0, 0), 2)
-            cv2.imshow("M4 Edge Sorting Pipeline Engine", frame)
 
-            # Keyboard input handling
-            key = cv2.waitKey(1) & 0xFF
-            if key == ord('q'):
-                break
-            elif key == ord('g'):
-                # Operator discrepancy override - trigger edge harvest event
-                save_edge_harvest_frame(frame, all_detections, harvest_dir, operator_override=True)
+            if not args.no_display:
+                # Draw parent boxes first
+                for parent in parent_boxes:
+                    x1, y1, x2, y2 = parent["box"]
+                    grade = parent["grade"]
+                    display_text = format_display_text(parent["name"], parent["conf"], grade)
+
+                    # Color coding by grade
+                    if grade == "DISCARD":
+                        color = (0, 0, 255)  # Red
+                    elif grade == "G1":
+                        color = (0, 255, 0)  # Green
+                    elif grade == "G2":
+                        color = (0, 165, 255)  # Orange
+                    else:  # G3
+                        color = (0, 0, 255)  # Red
+
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+                    cv2.putText(frame, display_text, (x1, y1 - 10), cv2.FONT_HERSHEY_DUPLEX, 0.5, color, 1)
+
+                    # Draw bounded child defects (Red layer)
+                    for defect in parent["defects"]:
+                        dx1, dy1, dx2, dy2 = defect["box"]
+                        defect_text = format_display_text(defect["name"], defect["conf"])
+                        cv2.rectangle(frame, (dx1, dy1), (dx2, dy2), (0, 0, 255), 2)
+                        cv2.putText(frame, defect_text, (dx1, dy1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 255), 1)
+
+                # Draw discard triggers (Magenta)
+                for trigger in discard_triggers:
+                    tx1, ty1, tx2, ty2 = trigger["box"]
+                    trigger_text = format_display_text(trigger["name"], trigger["conf"])
+                    cv2.rectangle(frame, (tx1, ty1), (tx2, ty2), (255, 0, 255), 2)
+                    cv2.putText(frame, trigger_text, (tx1, ty1 - 10), cv2.FONT_HERSHEY_DUPLEX, 0.5, (255, 0, 255), 1)
+
+                cv2.putText(frame, f"M4 Edge Engine: {fps:.1f} FPS", (20, 40), cv2.FONT_HERSHEY_DUPLEX, 0.7, (255, 0, 0), 2)
+                cv2.imshow("M4 Edge Sorting Pipeline Engine", frame)
+
+                # Keyboard input handling
+                key = cv2.waitKey(1) & 0xFF
+                if key == ord('q'):
+                    break
+                elif key == ord('g'):
+                    # Operator discrepancy override - trigger edge harvest event
+                    save_edge_harvest_frame(frame, all_detections, harvest_dir, operator_override=True)
+            else:
+                # Headless mode: print FPS every 30 frames
+                if int(fps) % 10 == 0:
+                    print(f"\r[FPS] {fps:.1f}", end="", flush=True)
     except KeyboardInterrupt:
         print("\n[SYSTEM]: Interrupted by user.")
     except Exception as e:
