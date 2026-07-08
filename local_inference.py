@@ -21,29 +21,59 @@ from camera_utils import detect_arducam_index
 from kernel_apple_coreml import register_apple_coreml
 
 
-def capture_frame_hardened(cap, camera_index=0):
-    """Captures a frame with automatic hardware reconnection logic."""
+def capture_frame_hardened(cap, camera_index=0, max_retries=5):
+    """Captures a frame with automatic hardware reconnection logic.
+
+    Args:
+        cap: OpenCV VideoCapture object.
+        camera_index: Index to re-open the camera at if reconnection is needed.
+        max_retries: Maximum reconnection attempts before giving up.
+
+    Returns:
+        Tuple of (cap, frame). If all retries fail, returns (cap, None).
+    """
     ret, frame = cap.read()
-    
-    # If hardware disconnects or drops a frame
-    if not ret or frame is None:
-        print("[CRITICAL ERROR]: Arducam dropped connection. Initiating hardware reset...")
+
+    # Fast path: frame captured successfully
+    if ret and frame is not None:
+        return cap, frame
+
+    # Hardware disconnect or dropped frame — attempt reconnection
+    print("[CRITICAL ERROR]: Arducam dropped connection. Initiating hardware reset...")
+    cap.release()
+    time.sleep(1.0)
+
+    for attempt in range(1, max_retries + 1):
+        print(f"[RETRYING]: Attempt {attempt}/{max_retries} — re-binding Arducam sensor...")
+        time.sleep(2.0)
+        cap = cv2.VideoCapture(camera_index)
+        if not cap.isOpened():
+            continue
+
+        # Re-apply camera settings after reconnection
+        cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+
+        # Warmup: discard first few frames — USB cameras on macOS often
+        # return empty frames immediately after opening before the sensor
+        # finishes initializing.
+        warmed = False
+        for _ in range(5):
+            ret, frame = cap.read()
+            if ret and frame is not None:
+                warmed = True
+                break
+            time.sleep(0.3)
+
+        if warmed:
+            print("[SUCCESS]: Arducam hardware link re-established.")
+            return cap, frame
+
         cap.release()
-        
-        while True:
-            time.sleep(2.0)  # Wait 2 seconds before retrying hardware bus
-            print("[RETRYING]: Attempting to re-bind Arducam sensor...")
-            cap = cv2.VideoCapture(camera_index)
-            if cap.isOpened():
-                # Re-apply camera settings after reconnection
-                cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
-                cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-                print("[SUCCESS]: Arducam hardware link re-established.")
-                ret, frame = cap.read()
-                if ret and frame is not None:
-                    return cap, frame
-    return cap, frame
+
+    print(f"[ERROR]: Failed to re-establish Arducam connection after {max_retries} attempts.")
+    return cap, None
 
 
 def load_grading_policy(policy_path="grading_policy.yaml"):
@@ -257,6 +287,16 @@ def main():
     actual_width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
     actual_height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
     print(f"[SYSTEM]: Camera configured at {actual_width}x{actual_height} with MJPG encoding")
+
+    # Warmup: discard first few frames — USB cameras on macOS return empty
+    # or corrupt frames before the sensor fully initializes.
+    for i in range(5):
+        ret, _ = cap.read()
+        if ret:
+            print(f"[SYSTEM]: Camera warmup frame {i+1}/5 OK")
+        else:
+            print(f"[SYSTEM]: Camera warmup frame {i+1}/5 failed (retrying...)")
+    print("[SYSTEM]: Camera warmup complete.")
     
     # Load the CoreML FP16 model (exported at 640x640, runs on ANE)
     # The kernel dispatcher is registered so future operation-level kernels
@@ -298,9 +338,13 @@ def main():
 
             cap, frame = capture_frame_hardened(cap, camera_index=cam_index)
 
+            # If the camera failed to produce a frame after all retries, bail out
+            if frame is None:
+                print("[ERROR]: No frame available. Exiting inference loop.")
+                break
+
             # Run inference through CoreML ANE (6.2x faster than PyTorch MPS)
-            # stream=True avoids building a full Results list — returns a generator
-            results = model(frame, conf=0.35, imgsz=640, verbose=False, stream=True)
+            results = model(frame, conf=0.35, imgsz=640, verbose=False)
 
             parent_boxes = []
             discard_triggers = []
@@ -308,9 +352,7 @@ def main():
             all_detections = []
 
             # --- STAGE 1: INSTANCE PARSING (Dynamic Schema Paradigm) ---
-            # stream=True returns a generator; grab the single result
-            result = next(results)
-            for box in result.boxes:
+            for box in results[0].boxes:
                 cls_id = int(box.cls[0])
                 coords = list(map(int, box.xyxy[0]))
                 conf = float(box.conf[0])
