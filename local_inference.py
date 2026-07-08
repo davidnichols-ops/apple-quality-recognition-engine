@@ -7,6 +7,8 @@ Feature Detector Pipeline: Dynamic Schema Architecture
 Base model: YOLO26x (FP16 CoreML export, 640x640, ANE-accelerated via kernel dispatch)
 """
 
+import argparse
+import glob
 import cv2
 import time
 import json
@@ -46,18 +48,38 @@ def capture_frame_hardened(cap, camera_index=0):
 
 def load_grading_policy(policy_path="grading_policy.yaml"):
     """Load grading policy from YAML configuration file."""
+    if not os.path.exists(policy_path):
+        print(f"[ERROR]: Grading policy file not found: {policy_path}")
+        available = glob.glob("*_grading_policy.yaml")
+        if available:
+            print("[SYSTEM]: Available *_grading_policy.yaml files in this directory:")
+            for f in available:
+                print(f"    - {f}")
+        else:
+            print("[SYSTEM]: No *_grading_policy.yaml files found in this directory.")
+        print("[SYSTEM]: Falling back to default grading rules")
+        return {'z_bruise', 'z_russeting'}, \
+               {'z_scarf_skin', 'z_sunburn', 'z_stem_puncture', 'z_scab', 'z_sooty_blotch_flyspeck'}, \
+               {'z_split_crack', 'z_misshapen', 'z_rot', 'z_insect_damage'}, \
+               {'max_mild_for_g1': 2, 'max_moderate_for_g2': 1, 'area_threshold_g2_pct': 5.0, 'area_threshold_g3_pct': 15.0, 'ioa_binding_threshold': 0.10}
+
     try:
         with open(policy_path, 'r') as file:
             policy = yaml.safe_load(file)
-        
+
+        # Extract facility identifier so the operator knows which profile is active
+        facility_id = policy.get('facility_id', 'UNKNOWN')
+        print(f"[SYSTEM]: Loading grading policy from {policy_path}")
+        print(f"[SYSTEM]: Facility ID: {facility_id}")
+
         # Extract the dynamic severity lists directly from the file
         mild = set(policy['severity_mapping']['mild_defects'])
         moderate = set(policy['severity_mapping']['moderate_defects'])
         severe = set(policy['severity_mapping']['severe_defects'])
-        
+
         # Extract rules
         rules = policy['rules']
-        
+
         print(f"[SYSTEM]: Successfully loaded live grading rules from {policy_path}")
         print(f"[SYSTEM]: Severe triggers: {severe}")
         return mild, moderate, severe, rules
@@ -207,10 +229,15 @@ def save_edge_harvest_frame(frame, detections, harvest_dir, operator_override=Fa
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Apple Quality Recognition Engine - Production Inference")
+    parser.add_argument("--policy", default="grading_policy.yaml",
+                        help="Path to grading policy YAML file (default: grading_policy.yaml)")
+    args = parser.parse_args()
+
     print("[SYSTEM]: Initializing M4 Edge Sorting Pipeline Engine...")
-    
+
     # Load grading policy from configuration file
-    MILD_DEFECTS, MODERATE_DEFECTS, SEVERE_DEFECTS, GRADING_RULES = load_grading_policy()
+    MILD_DEFECTS, MODERATE_DEFECTS, SEVERE_DEFECTS, GRADING_RULES = load_grading_policy(args.policy)
     
     # Initialize camera with auto-detected index (matches baseline_verify.py)
     cam_index = detect_arducam_index()
@@ -252,11 +279,11 @@ def main():
 
     # Schema guard: warn if the model wasn't trained on the apple dataset
     if num_classes != 13 or model.names.get(0) != "apple":
-        print(f"[WARNING]: Model class schema does not match data.yaml (expected 13 classes, class 0 = 'apple').")
+        print("[WARNING]: Model class schema does not match data.yaml (expected 13 classes, class 0 = 'apple').")
         print(f"[WARNING]: Got {num_classes} classes, class 0 = '{model.names.get(0)}'.")
-        print(f"[WARNING]: This is expected for the COCO-pretrained placeholder model.")
-        print(f"[WARNING]: Apple sorting will NOT work correctly until T-006 (custom training) is complete.")
-        print(f"[WARNING]: Proceeding in BENCHMARK MODE — FPS numbers are valid, detections are not.")
+        print("[WARNING]: This is expected for the COCO-pretrained placeholder model.")
+        print("[WARNING]: Apple sorting will NOT work correctly until T-006 (custom training) is complete.")
+        print("[WARNING]: Proceeding in BENCHMARK MODE — FPS numbers are valid, detections are not.")
     
     # Edge harvest directory
     harvest_dir = "dataset/edge_harvest"

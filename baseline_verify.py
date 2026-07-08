@@ -125,7 +125,7 @@ def main():
         pt_med = sorted(pt_warm)[len(pt_warm) // 2] if pt_warm else 0
         cml_med = sorted(cml_warm)[len(cml_warm) // 2] if cml_warm else 0
         print(f"\n{'='*50}")
-        print(f"BENCHMARK RESULTS")
+        print("BENCHMARK RESULTS")
         print(f"{'='*50}")
         print(f"PyTorch MPS (yolo26n): {pt_med:.1f} FPS")
         print(f"CoreML ANE  (yolo26x): {cml_med:.1f} FPS")
