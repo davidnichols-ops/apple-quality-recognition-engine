@@ -280,12 +280,14 @@ def main():
     print(f"[SYSTEM]: Class 0 = apple, Class 1 = unfit_bin_discard, Classes 2-{num_classes-1} = dynamic defects")
 
     # Schema guard: warn if the model wasn't trained on the apple dataset
-    if num_classes != 13 or model.names.get(0) != "apple":
+    benchmark_mode = num_classes != 13 or model.names.get(0) != "apple"
+    if benchmark_mode:
         print("[WARNING]: Model class schema does not match data.yaml (expected 13 classes, class 0 = 'apple').")
         print(f"[WARNING]: Got {num_classes} classes, class 0 = '{model.names.get(0)}'.")
         print("[WARNING]: This is expected for the COCO-pretrained placeholder model.")
         print("[WARNING]: Apple sorting will NOT work correctly until T-006 (custom training) is complete.")
         print("[WARNING]: Proceeding in BENCHMARK MODE — FPS numbers are valid, detections are not.")
+        print("[WARNING]: Edge harvesting disabled in benchmark mode (COCO detections are not apples).")
     
     # Edge harvest directory
     harvest_dir = "dataset/edge_harvest"
@@ -377,7 +379,10 @@ def main():
                     parent["grade"] = "DISCARD"
 
             # --- STAGE 5: EDGE HARVESTING (Active Learning) ---
-            save_edge_harvest_frame(frame, all_detections, harvest_dir)
+            # Skip in benchmark mode — COCO detections aren't apples, so
+            # harvesting every frame would flood disk with useless data.
+            if not benchmark_mode:
+                save_edge_harvest_frame(frame, all_detections, harvest_dir)
 
             # --- STAGE 6: OUTPUT RENDERING ENGINE ---
             fps = 1.0 / (time.time() - start_time)
