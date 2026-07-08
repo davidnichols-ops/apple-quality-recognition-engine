@@ -25,6 +25,7 @@ venv/
 env/
 ENV/
 apple_env/
+.venv/
 
 # Dataset (captured images)
 dataset/
