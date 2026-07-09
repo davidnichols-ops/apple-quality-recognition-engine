@@ -1,330 +1,179 @@
 # Apple Quality Recognition Engine
 
-Most agricultural vision systems fail for a structural reason, not a modeling one.
+An edge-first vision pipeline that grades apples on Apple Silicon (M4) using a two-stage architecture: **YOLO26 detects, a deterministic policy engine decides.**
 
-They ask neural networks to perform judgment.
-
-**This system does not.**
-
-The Apple Quality Recognition Engine is an **edge-first** vision pipeline built for Apple Silicon (M4). It separates perception from decision-making:
-
-- **YOLO26** detects apples, discard triggers, and surface defects.
-- A **deterministic grading engine** (driven by `grading_policy.yaml`) evaluates severity, spatial relationships, and coverage.
+Most agricultural vision systems ask a neural network to perform judgment. This one doesn't. The model identifies apples and surface defects. A configurable grading engine — driven by a YAML policy file — evaluates severity, spatial relationships, and coverage area to assign grades. Changing facility rules is a config edit, not a retraining cycle.
 
 **Neural networks identify. Algorithms decide.**
 
-This separation keeps operational logic out of model weights, making facility rule changes fast and reliable.
-
 ---
 
-## Core System Principles (Current Status)
-
-| Principle              | Status     | Description |
-|------------------------|------------|-------------|
-| Detection ≠ Decision   | Complete   | Neural network detects; deterministic logic grades. |
-| Dynamic Schema         | Complete   | Defect taxonomy loads from policy file at runtime. |
-| Facility Ground Truth  | Complete   | Grading rules defined in `grading_policy.yaml`. |
-| Edge-Native Execution  | Complete   | Runs on Apple Neural Engine via CoreML / Ultralytics. |
-| Hardware Hardening     | Complete   | Automatic camera reconnection on Arducam drops. Camera index auto-detection via `camera_utils.py` (VID/PID + native resolution match). |
-| Operator Authority     | Complete   | Telemetry capture for human overrides. |
-| Active Learning Loop   | Partial    | Low-confidence frames are harvested (full loop pending). |
-
----
-
-## System Architecture
-
-### Feature Detector Pipeline
-
-Two-stage design:
-
-1. **Neural detection** (YOLO26)
-2. **Deterministic grading engine**
+## How It Works
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                      MACRO PARENT BOX                           │
-│                 Class 0: apple (instance root)                  │
-│                                                                 │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │              MICRO DEFECT LAYER (Classes 2-N)             │  │
-│  │   Bruise     Russet     Scab      Rot     Crack          │  │
-│  └───────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
+Camera → YOLO26 (CoreML/ANE) → Detection Boxes → Spatial Binding → Grading Engine → G1/G2/G3/DISCARD
 ```
 
-### Execution Flow (Implemented)
+1. **Detection** — YOLO26x (FP16 CoreML, 640x640) detects apples (class 0), discard triggers (class 1), and surface defects (classes 2-12) on the Apple Neural Engine.
 
-1. **Neural Stage** — YOLO26 detects apples (0), discard triggers (1), defects (2-N).
-2. **Spatial Binding** — Defects bound to apples via Intersection-over-Area (IoA ≥ 0.10).
-3. **Grading Engine** — Deterministic scoring from `compute_grade()` using policy file.
-4. **Discard Override** — Class 1 triggers immediate rejection on proximity.
-5. **Edge Harvesting** — Low-confidence detections (0.40–0.65) saved with telemetry.
-6. **Operator Override** — Manual disagreement logging (key `g`).
+2. **Spatial Binding** — Each defect box is bound to the apple box with the highest Intersection-over-Area ratio (IoA >= 0.10). This associates defects with specific fruit instances without centroid tracking.
+
+3. **Grading** — A deterministic function counts bound defects by severity, computes coverage area as a percentage of the apple box, and applies thresholds from `grading_policy.yaml`:
+
+   | Grade | Condition | Color |
+   |-------|-----------|-------|
+   | G1 | <= 2 mild defects, < 5% coverage | Green |
+   | G2 | > 2 mild OR > 1 moderate OR 5-15% coverage | Orange |
+   | G3 | Any severe defect OR > 15% coverage | Red |
+   | DISCARD | Class 1 proximity trigger | Red |
+
+4. **Edge Harvesting** — Low-confidence detections (0.40-0.65) are saved with telemetry for active learning. Disabled in benchmark mode (COCO placeholder model).
+
+5. **Operator Override** — Press `g` during inference to log a grading disagreement. Overrides are persisted separately from general harvest data for review.
 
 ---
 
-## Dynamic Schema & Policy Engine
+## Class Schema
 
-The system loads defect taxonomy and rules at runtime from `grading_policy.yaml`. No code changes needed when adding defects (only dataset + retrain + redeploy).
+13 classes defined in `data.yaml`. Severity buckets defined in `grading_policy.yaml`.
 
-**Key files:**
-- `grading_policy.yaml` — severity mapping + thresholds
-- Runtime class discovery: `num_classes = len(model.names)`
+| Index | Class | Role | Severity |
+|------:|-------|------|----------|
+| 0 | `apple` | Macro parent box (one per fruit) | — |
+| 1 | `unfit_bin_discard` | Discard override trigger | — |
+| 2 | `z_bruise` | Surface defect | Mild |
+| 3 | `z_russeting` | Surface defect | Mild |
+| 4 | `z_scarf_skin` | Surface defect | Moderate |
+| 5 | `z_sunburn` | Surface defect | Moderate |
+| 6 | `z_stem_puncture` | Surface defect | Moderate |
+| 7 | `z_split_crack` | Surface defect | Severe |
+| 8 | `z_misshapen` | Surface defect | Severe |
+| 9 | `z_scab` | Surface defect | Moderate |
+| 10 | `z_sooty_blotch_flyspeck` | Surface defect | Moderate |
+| 11 | `z_rot` | Surface defect | Severe |
+| 12 | `z_insect_damage` | Surface defect | Severe |
 
-### Schema Rules
-
-* Class 0 → apple (root instance)
-* Class 1 → unfit_bin_discard (override trigger)
-* Class 2-N → defect taxonomy (dynamic)
-
-Adding a new defect requires:
-
-1. dataset update
-2. retraining
-3. redeployment
-
-No inference changes required.
-
----
-
-## Hardware & Deployment
-
-### Target Stack
-- **Host**: MacBook Air (Apple M4)
-- **OS**: macOS 26 (Tahoe)
-- **Camera**: Arducam USB Global Shutter
-- **Acceleration**: Apple Neural Engine (CoreML)
-
-### Camera Configuration
-- Camera Index: 0
-- Resolution: 1280x720
-- Pipeline: MJPG native stream
-- Backend: OpenCV (cv2.VideoCapture)
-
-### Inference Configuration
-- Sandbox: `yolo26n.pt` (validation only)
-- Production: `best.mlpackage` (CoreML, trained from YOLO26x)
-- Sandbox Resolution: 640px
-- Production Resolution: 1024px
-- Execution Backend: Apple Neural Engine (ANE)
+Adding a new defect class requires updating `data.yaml`, adding it to a severity bucket in `grading_policy.yaml`, and retraining. No inference code changes needed — the schema is discovered at runtime via `len(model.names)`.
 
 ---
 
-## Class Dictionary
+## Hardware
 
-### Schema Overview
+| Component | Spec |
+|-----------|------|
+| Host | MacBook Air (Apple M4) |
+| OS | macOS 26 (Tahoe) |
+| Camera | Arducam OV9782 USB Global Shutter (auto-detected via VID/PID) |
+| Acceleration | Apple Neural Engine via CoreML FP16 |
+| Inference Resolution | 640x640 |
+| Camera Capture | 1280x720 MJPG |
 
-| Index | Class | Type | Function |
-|-------|-------|------|----------|
-| 0 | apple | Parent | Instance root |
-| 1 | unfit_bin_discard | Override | Immediate rejection trigger |
-| 2 | z_bruise | Defect | Mild |
-| 3 | z_russeting | Defect | Mild |
-| 4 | z_scarf_skin | Defect | Moderate |
-| 5 | z_sunburn | Defect | Moderate |
-| 6 | z_stem_puncture | Defect | Moderate |
-| 7 | z_split_crack | Defect | Severe |
-| 8 | z_misshapen | Defect | Severe |
-| 9 | z_scab | Defect | Moderate |
-| 10 | z_sooty_blotch_flyspeck | Defect | Moderate |
-| 11 | z_rot | Defect | Severe |
-| 12 | z_insect_damage | Defect | Severe |
+Camera auto-detection lives in `camera_utils.py`. If the Arducam isn't found, the system falls back to the built-in camera with a warning. The inference loop includes warmup reads and bounded retry logic for USB disconnects.
 
 ---
 
-## Algorithmic Grading Matrix
-
-Grading is computed deterministically in `compute_grade()`.
-
-### Inputs
-
-* defect count
-* defect severity weights
-* area coverage ratio
-
-### Grade Logic
-
-| Grade | Condition | Output |
-|-------|-----------|--------|
-| G1 | no defects OR minimal mild defects | green |
-| G2 | moderate defects OR 5–15% coverage | orange |
-| G3 | structural defects OR >15% coverage | red |
-| DISCARD | Class 1 proximity event | reject |
-
----
-
-## Spatial Binding Engine
-
-Defect-to-apple association is computed via IoA:
-
-```
-IoA = Intersection Area / Defect Area
-```
-
-Binding condition:
-
-```
-IoA ≥ 0.10 → attach defect to apple instance
-```
-
-This avoids centroid instability in dense cluster environments.
-
----
-
-## Data Lifecycle Architecture
-
-```
-RAW CAPTURE
-  → Arducam MJPG stream
-  → dataset/raw_ingest/
-
-MANUAL ANNOTATION
-  → Roboflow labeling
-  → Class 0: apple
-  → Class 1: discard trigger
-  → Class 2-N: defects
-
-CLOUD TRAINING
-  → YOLO26x (1024px)
-  → Export CoreML (.mlpackage)
-
-EDGE DEPLOYMENT
-  → M4 Neural Engine
-  → local_inference.py execution
-  → real-time grading
-```
-
----
-
-## Operational Pipeline
-
-### 1. Environment Setup
+## Quick Start
 
 ```bash
-cd apple-quality-recognition-engine
-python3 -m venv ../venv
-source ../venv/bin/activate
-pip install -r requirements.txt
-```
+# Create venv and install dependencies
+uv venv .venv --python 3.13
+source .venv/bin/activate
+uv pip install -r requirements.lock.txt
 
-### 2. Hardware Verification
-
-```bash
-python baseline_verify.py
-```
-
-Verifies camera + baseline inference.
-
-### 3. Production Inference
-
-```bash
+# Run inference (requires camera + model file)
 python local_inference.py
+
+# Run with a specific facility policy
+python local_inference.py --policy grading_policy.yaml
+
+# Headless benchmarking (no display, faster FPS)
+python local_inference.py --no-display
+
+# Verify hardware + baseline inference
+python baseline_verify.py
+
+# Compare PyTorch vs CoreML performance
+python baseline_verify.py --compare
 ```
 
-Real-time grading with colors:
-
-- Green → G1
-- Orange → G2
-- Red → G3 / DISCARD
-
-### 4. Dataset Capture
-
-```bash
-python capture_dataset.py
-```
-
-Behavior:
-
-* 1280×720 raw capture
-* spacebar triggers multi-angle capture
-* frames stored unprocessed
-
----
-
-## Edge Learning System
-
-Frames in the 0.40–0.65 confidence band are automatically saved to `dataset/edge_harvest/` with full telemetry. This creates the raw material for future continuous improvement.
-
-Each entry includes:
-
-* bounding boxes
-* class IDs
-* confidence scores
-* timestamp metadata
-
----
-
-## Operator Controls
+### Operator Controls
 
 | Key | Action |
 |-----|--------|
-| g | Log grading disagreement |
-| q | Quit |
-| space | Capture dataset frame (in capture script) |
+| `q` | Quit |
+| `g` | Log grading disagreement (operator override) |
+| `space` | Capture dataset frame (in `capture_dataset.py`) |
 
 ---
 
-## Operational Roadmap (Honest Status — June 2026)
+## Project Files
+
+| File | Purpose |
+|------|---------|
+| `local_inference.py` | Production inference loop with grading, display, and edge harvesting |
+| `baseline_verify.py` | Hardware verification + PyTorch/CoreML benchmark comparison |
+| `capture_dataset.py` | Raw frame capture from Arducam (1280x720, multi-angle) |
+| `camera_utils.py` | Arducam auto-detection via system_profiler (VID/PID + resolution) |
+| `kernel_dispatch.py` | Hardware-agnostic kernel dispatch layer |
+| `kernel_apple_coreml.py` | CoreML FP16/INT8 backend for ANE (4-11x speedup over PyTorch MPS) |
+| `edge_harvest_schema.py` | Typed telemetry schema for harvested frames (validation + persistence) |
+| `override_persistence.py` | Operator override logging (separate from general harvest) |
+| `grading_policy.yaml` | Facility grading rules (severity buckets, thresholds, IoA binding) |
+| `data.yaml` | 13-class dataset schema for training |
+| `environment.yaml` | Conda environment spec (Python 3.13, ultralytics 8.4.90) |
+| `requirements.lock.txt` | Pinned dependency lockfile |
+| `scripts/reingest_harvest.py` | Promote harvested frames back into raw_ingest for re-annotation |
+| `scripts/override_report.py` | Daily operator override summary report |
+| `docs/annotation_sop.md` | Annotation standard operating procedure for labelers |
+| `.github/workflows/ci.yml` | CI: pyflakes + compile check on push and PR |
+
+---
+
+## Policy Engine
+
+The grading engine reads severity mappings and thresholds from `grading_policy.yaml` at runtime. Different facilities can have different policies — swap them with the `--policy` flag:
+
+```yaml
+# grading_policy.yaml
+facility_id: "DSM_COLD_STORAGE_01"
+
+severity_mapping:
+  mild_defects: [z_bruise, z_russeting]
+  moderate_defects: [z_scarf_skin, z_sunburn, z_stem_puncture, z_scab, z_sooty_blotch_flyspeck]
+  severe_defects: [z_split_crack, z_misshapen, z_rot, z_insect_damage]
+
+rules:
+  max_mild_for_g1: 2
+  max_moderate_for_g2: 1
+  area_threshold_g2_pct: 5.0
+  area_threshold_g3_pct: 15.0
+  ioa_binding_threshold: 0.10
+```
+
+If the requested policy file doesn't exist, the system lists available `*_grading_policy.yaml` files and falls back to default rules.
+
+---
+
+## Status
 
 | Milestone | Status |
 |-----------|--------|
-| Hardware integration + reconnection | Complete |
-| Sandbox validation | Complete |
-| Dataset capture | Active |
-| Dynamic grading policy engine | Complete |
+| Hardware integration + camera auto-detection | Complete |
+| YOLO26x + CoreML FP16 ANE backend | Complete |
+| Kernel dispatch architecture | Complete |
 | Deterministic grading + spatial binding | Complete |
-| Annotation pipeline | Pending |
-| Cloud training / model export | Pending |
-| Full CoreML production deployment | Pending (model loading in place) |
+| Dynamic policy engine + facility profiles | Complete |
+| Edge harvest telemetry schema | Complete |
+| Operator override persistence | Complete |
+| CI (lint + compile check) | Complete |
+| Model training on apple dataset | In progress |
+| CoreML export of trained model | Pending |
 | Closed-loop continuous learning | Pending |
 
----
-
-## Engineering Logbook
-
-### Day 1 — Hardware Validation
-
-Verified Arducam ingestion pipeline and MPS acceleration on Apple Silicon. Established baseline inference stability at 40 FPS.
-
-### Day 2 — Requirement Collapse
-
-Facility verification invalidated USDA-style grading assumptions. System restructured around 3-tier operational reality.
-
-### Day 3 — Feature Detector Migration
-
-Removed variety-grade coupling. Transitioned to 13-class feature detection model with deterministic grading engine.
-
-### Day 4 — Dynamic Schema Deployment
-
-Implemented runtime class discovery. Eliminated inference-time coupling to dataset taxonomy. Introduced IoA spatial binding and operator override telemetry.
-
-### Day 5+ — Hardware Hardening & Policy Engine (June 2026)
-
-Deployed robust camera reconnection logic. Built configurable grading policy system. Foundation ready for model training and continuous learning loop.
-
-### Day 6 — Household Sandbox Demo (June 16, 2026)
-
-Created household-sandbox-demo branch as a quick test from main. Built a functional proof-of-concept adapting the engine to household plant canopy monitoring using a COCO-pretrained yolo11x.mlpackage. Added demo_inference.py and demo_grading_policy.yaml with interactive mouse-driven defect injection for testing spatial binding and grading logic. Successfully validated core modularity and domain portability with zero changes to the fundamental architecture.
-
-### Day 7 — Camera Index Bug Fix (July 2026)
-
-Discovered all three production scripts (`capture_dataset.py`, `baseline_verify.py`, `local_inference.py`) hardcoded `CAM_INDEX=0`, which on this MacBook Air M4 maps to the built-in FaceTime camera — not the Arducam OV9782 (which enumerates at index 1). The "Hardware Hardening" milestone was previously validated against the wrong camera. Fixed by adding `camera_utils.py` with auto-detection via `system_profiler` name match + native resolution (1920x1080) probe, with graceful fallback. Re-validated against the actual Arducam hardware.
-
-### Day 8 — YOLO26x Model Pivot (July 2026)
-
-Migrated the entire software stack from YOLO11 to YOLO26 (Ultralytics, launched January 2026). YOLO26 brings NMS-free end-to-end inference, up to 43% faster CPU inference, and CoreML export support via the same familiar Ultralytics interface. Production training target is `yolo26x.pt` (55.7M params, 57.5 mAP COCO); baseline verification uses `yolo26n.pt` (nano variant for fast hardware checks). Required bumping `ultralytics` from 8.3.155 to 8.4.50 (YOLO26 model definitions are not in the 8.3.x pip releases). Updated `environment.yaml`, `requirements.lock.txt`, `baseline_verify.py`, `local_inference.py`, `data.yaml`, and `docs/annotation_sop.md`.
+Currently running a COCO-pretrained placeholder model (80 classes) in benchmark mode. FPS numbers are valid; detections are not. Once a model trained on the 13-class apple dataset is loaded, grading and edge harvesting activate automatically.
 
 ---
 
-## Closing Statement
+## License
 
-This system optimizes for **operational truth on real hardware**, not model complexity.
-
-A neural network can be wrong about a fruit.
-A system misaligned with facility rules is useless.
-
-Reality remains the final authority.
-
-**Next steps:** Focus on building a small annotated dataset and getting a working CoreML model deployed. Update this README again once training and annotation are active.
-
-⸻
+The system uses Ultralytics YOLO26 (AGPL-3.0). Be aware of copyleft obligations if commercializing.
