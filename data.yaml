@@ -1,31 +1,32 @@
-# data.yaml
-# Production Specification (Feature Detector Pipeline)
-# Dynamic Schema: Class 0 = apple, Class 1 = unfit_bin_discard, Classes 2-N = dynamic defects
-# Total Classes: 13 (0-12) - defect count scales dynamically based on dataset diversity
+# Plant Health Recognition Engine — 3-tier feature detector schema.
+#
+# Hierarchy:  plant (parent) → leaf (child instance) → class_defect (grandchild)
+#
+# Defects bind to leaves via IoA; leaves bind to plants via IoA.
+# The deterministic grading engine walks the tree bottom-up:
+#   1. grade each leaf from its bound defects (count + coverage)
+#   2. grade the plant from the aggregate of leaf grades
+#
+# Reference health grades (HEALTHY / MODERATE / POOR / DISCARD) live in
+# capture metadata, not in YOLO labels.  Annotators box every visible
+# defect even on HEALTHY plants so the detector never learns that grade
+# controls whether a defect exists.
 
-path: ./apple_dataset
+path: ./plant_dataset
 train: images/train
 val: images/val
 test: images/test
 
-nc: 13
+nc: 4
 names:
   # --- MACRO PARENT BOX ---
-  0: apple
+  0: plant
+
+  # --- LEAF INSTANCE (intermediate child) ---
+  1: leaf
 
   # --- DISCARD TRIGGER ---
-  1: unfit_bin_discard
+  2: unfit_discard
 
-  # --- MICRO DEFECT OVERLAY (Dynamic Indices 2-N) ---
-  # Add or remove defect classes below as needed - local_inference.py auto-scales
-  2: z_bruise
-  3: z_russeting
-  4: z_scarf_skin
-  5: z_sunburn
-  6: z_stem_puncture
-  7: z_split_crack
-  8: z_misshapen
-  9: z_scab
-  10: z_sooty_blotch_flyspeck
-  11: z_rot
-  12: z_insect_damage
+  # --- GENERIC DEFECT (grandchild, binds to leaf via IoA) ---
+  3: class_defect

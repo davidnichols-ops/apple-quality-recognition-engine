@@ -1,318 +1,226 @@
-# Apple Quality Recognition Engine
+# Plant Health Recognition Engine
 
-Most agricultural vision systems fail for a structural reason, not a modeling one.
+An edge-first vision system for grading household plant health on Apple Silicon.
 
-They ask neural networks to perform judgment.
+**Models observe. Deterministic policy decides. Humans authorize learning.**
 
-**This system does not.**
+This system separates perception from decision-making:
 
-The Apple Quality Recognition Engine is an **edge-first** vision pipeline built for Apple Silicon (M4). It separates perception from decision-making:
+- **YOLO26n** detects plants, individual leaves, discard triggers, and defect regions.
+- A **deterministic 3-tier grading engine** (driven by `grading_policy.yaml`) binds defects to leaves, grades each leaf, then aggregates leaf grades into a plant health grade.
 
-- **YOLO11** detects apples, discard triggers, and surface defects.
-- A **deterministic grading engine** (driven by `grading_policy.yaml`) evaluates severity, spatial relationships, and coverage.
-
-**Neural networks identify. Algorithms decide.**
-
-This separation keeps operational logic out of model weights, making facility rule changes fast and reliable.
+This separation keeps operational logic out of model weights, making policy changes fast and reliable without retraining.
 
 ---
 
-## Core System Principles (Current Status)
-
-| Principle              | Status     | Description |
-|------------------------|------------|-------------|
-| Detection ≠ Decision   | Complete   | Neural network detects; deterministic logic grades. |
-| Dynamic Schema         | Complete   | Defect taxonomy loads from policy file at runtime. |
-| Facility Ground Truth  | Complete   | Grading rules defined in `grading_policy.yaml`. |
-| Edge-Native Execution  | Complete   | Runs on Apple Neural Engine via CoreML / Ultralytics. |
-| Hardware Hardening     | Complete   | Automatic camera reconnection on Arducam drops. |
-| Operator Authority     | Complete   | Telemetry capture for human overrides. |
-| Active Learning Loop   | Partial    | Low-confidence frames are harvested (full loop pending). |
-
----
-
-## System Architecture
-
-### Feature Detector Pipeline
-
-Two-stage design:
-
-1. **Neural detection** (YOLO11)
-2. **Deterministic grading engine**
+## 3-Tier Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                      MACRO PARENT BOX                           │
-│                 Class 0: apple (instance root)                  │
+│                      PLANT (parent box)                         │
+│                 Class 0: plant (instance root)                  │
 │                                                                 │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │              MICRO DEFECT LAYER (Classes 2-N)             │  │
-│  │   Bruise     Russet     Scab      Rot     Crack          │  │
-│  └───────────────────────────────────────────────────────────┘  │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │              LEAF (child instance box)                   │   │
+│  │              Class 1: leaf                               │   │
+│  │                                                          │   │
+│  │  ┌──────────────────────────────────────────────────┐    │   │
+│  │  │         DEFECT (grandchild box)                  │    │   │
+│  │  │         Class 3: class_defect                    │    │   │
+│  │  └──────────────────────────────────────────────────┘    │   │
+│  │  ┌──────────────────────────────────────────────────┐    │   │
+│  │  │         DEFECT (grandchild box)                  │    │   │
+│  │  └──────────────────────────────────────────────────┘    │   │
+│  └──────────────────────────────────────────────────────────┘   │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │              LEAF (child instance box)                   │   │
+│  │              (no defects → HEALTHY)                      │   │
+│  └──────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### Execution Flow (Implemented)
+### Grading flow (bottom-up)
 
-1. **Neural Stage** — YOLO11 detects apples (0), discard triggers (1), defects (2-N).
-2. **Spatial Binding** — Defects bound to apples via Intersection-over-Area (IoA ≥ 0.10).
-3. **Grading Engine** — Deterministic scoring from `compute_grade()` using policy file.
-4. **Discard Override** — Class 1 triggers immediate rejection on proximity.
-5. **Edge Harvesting** — Low-confidence detections (0.40–0.65) saved with telemetry.
-6. **Operator Override** — Manual disagreement logging (key `g`).
+1. **Bind defects to leaves** — each `class_defect` is bound to the leaf with the highest Intersection-over-Area (IoA) above threshold.
+2. **Grade each leaf** — HEALTHY / MODERATE / POOR / DISCARD based on defect count and clipped union coverage area.
+3. **Bind leaves to plants** — each leaf is bound to the plant with the highest IoA above threshold.
+4. **Grade each plant** — from the aggregate of leaf grades (worst leaf + percentage of unhealthy leaves).
+5. **Discard override** — `unfit_discard` boxes near a plant trigger immediate DISCARD.
 
 ---
 
-## Dynamic Schema & Policy Engine
+## 4-Class Detector Schema
 
-The system loads defect taxonomy and rules at runtime from `grading_policy.yaml`. No code changes needed when adding defects (only dataset + retrain + redeploy).
+| ID | Class | Role |
+|---:|---|---|
+| 0 | `plant` | Parent bounding box for overall plant health |
+| 1 | `leaf` | Individual leaf instance (intermediate child) |
+| 2 | `unfit_discard` | Discard trigger — dead/dying plant signal |
+| 3 | `class_defect` | Generic defect on a leaf (disease, damage, pest) |
 
-**Key files:**
-- `grading_policy.yaml` — severity mapping + thresholds
-- Runtime class discovery: `num_classes = len(model.names)`
+Why one generic defect class:
 
-### Schema Rules
+- concentrates available examples instead of starving rare defect types;
+- makes annotation and Roboflow label assist easier to review;
+- lets leaf-level geometry, count, and coverage carry the first production decision;
+- defers taxonomic expansion until confusion data proves a specific split adds grade value.
 
-* Class 0 → apple (root instance)
-* Class 1 → unfit_bin_discard (override trigger)
-* Class 2-N → defect taxonomy (dynamic)
+---
 
-Adding a new defect requires:
+## Health Grades
 
-1. dataset update
-2. retraining
-3. redeployment
+| Grade | Meaning | Criteria (candidate) |
+|---|---|---|
+| HEALTHY | No significant issues | ≤2 defects per leaf, <5% coverage |
+| MODERATE | Minor issues | 3-5 defects per leaf or 5-15% coverage |
+| POOR | Significant damage | >5 defects per leaf or >15% coverage |
+| DISCARD | Dead/dying or discard trigger | `unfit_discard` detected or all leaves poor |
 
-No inference changes required.
+---
+
+## Production Flow
+
+```text
+Known-grade plant
+  → five-view capture (4 equatorial + 1 top-down)
+  → profile manifest
+  → Roboflow annotation / reviewed label assist
+  → profile-level train/val/test split
+  → YOLO26n candidate training
+  → held-out evaluation + M4 benchmark
+  → human checkpoint promotion
+
+Live plant
+  → YOLO26n CoreML candidate
+  → plant + leaf + defect boxes
+  → defect-to-leaf IoA binding
+  → leaf-to-plant IoA binding
+  → deterministic per-leaf grade
+  → aggregate plant grade (worst leaf + unhealthy %)
+  → HEALTHY / MODERATE / POOR / DISCARD
+  → review queue when confidence is volatile or coverage is near a boundary
+```
+
+---
+
+## Dataset Pipeline
+
+### 1. Download and merge from Roboflow Universe
+
+```bash
+export ROBOFLOW_API_KEY="your-key"
+python scripts/download_universe_datasets.py \
+    --output-dir plant_dataset \
+    --api-key "$ROBOFLOW_API_KEY"
+```
+
+Downloads and merges multiple public plant disease datasets from Roboflow Universe into a unified 4-class YOLO dataset:
+
+- **all_eggplant_diseases** (34K images) — has `Healthy Plant`, `Healthy Leaf`, and disease classes
+- **Strawberry Diseases Detection** (2.7K images) — `Healthy Leaf` + disease classes
+- **Plant Disease Detection** (5K images) — diverse leaf types + diseases
+- **plant disease detection** (10K images) — multi-crop healthy + disease classes
+
+Source class names are mapped to our 4-class schema. Missing `plant` parent boxes are computed from the union of leaf boxes.
+
+### 2. Train YOLO26n
+
+```bash
+python scripts/train_yolo26n.py \
+    --data plant_dataset/data.yaml \
+    --epochs 100 \
+    --imgsz 640 \
+    --batch 16 \
+    --device mps
+```
+
+Trains from COCO-pretrained `yolo11n.pt` base weights, evaluates on the test split, and exports to CoreML for M4 Neural Engine deployment.
+
+### 3. Capture known-grade profiles
+
+```bash
+python capture_dataset.py \
+    --grade HEALTHY \
+    --count 10 \
+    --batch-id monstera-batch-20260831 \
+    --grader-id david \
+    --species monstera \
+    --location living-room
+```
+
+### 4. Split profiles (no data leakage)
+
+```bash
+python scripts/split_profiles.py \
+    --manifest dataset/raw_ingest/manifest.jsonl \
+    --output-dir splits \
+    --train-ratio 0.7 --val-ratio 0.2 --test-ratio 0.1 \
+    --seed 42
+```
+
+All five views of one plant stay in the same partition.
+
+---
+
+## Local Inference
+
+```bash
+# CoreML (production — M4 Neural Engine)
+python local_inference.py --model best.mlpackage
+
+# PyTorch (development)
+python local_inference.py --model runs/detect/plant_yolo26n/weights/best.pt
+
+# Benchmark mode (FPS only, no grading)
+python local_inference.py --benchmark
+```
+
+Keyboard controls:
+- `q` — quit
+- `g` — log operator override (saves frame + telemetry to edge harvest)
 
 ---
 
 ## Hardware & Deployment
 
-### Target Stack
-- **Host**: MacBook Air (Apple M4)
-- **OS**: macOS 26 (Tahoe)
-- **Camera**: Arducam USB Global Shutter
-- **Acceleration**: Apple Neural Engine (CoreML)
-
-### Camera Configuration
-- Camera Index: 0
-- Resolution: 1280x720
-- Pipeline: MJPG native stream
-- Backend: OpenCV (cv2.VideoCapture)
-
-### Inference Configuration
-- Sandbox: `yolo11n.pt` (validation only)
-- Production: `best.mlpackage` (CoreML)
-- Sandbox Resolution: 640px
-- Production Resolution: 1024px
-- Execution Backend: Apple Neural Engine (ANE)
+| Component | Specification |
+|---|---|
+| Host | MacBook Air (Apple M4) |
+| OS | macOS 26 (Tahoe) |
+| Camera | Arducam USB Global Shutter / built-in webcam |
+| Acceleration | Apple Neural Engine (CoreML) |
+| Resolution | 1280×720 MJPG |
+| Model | YOLO26n (4-class OD) |
+| Inference size | 640px (sandbox) / 1024px (production) |
 
 ---
 
-## Class Dictionary
+## Key Files
 
-### Schema Overview
-
-| Index | Class | Type | Function |
-|-------|-------|------|----------|
-| 0 | apple | Parent | Instance root |
-| 1 | unfit_bin_discard | Override | Immediate rejection trigger |
-| 2 | z_bruise | Defect | Mild |
-| 3 | z_russeting | Defect | Mild |
-| 4 | z_scarf_skin | Defect | Moderate |
-| 5 | z_sunburn | Defect | Moderate |
-| 6 | z_stem_puncture | Defect | Moderate |
-| 7 | z_split_crack | Defect | Severe |
-| 8 | z_misshapen | Defect | Severe |
-| 9 | z_scab | Defect | Moderate |
-| 10 | z_sooty_blotch_flyspeck | Defect | Moderate |
-| 11 | z_rot | Defect | Severe |
-| 12 | z_insect_damage | Defect | Severe |
+| File | Purpose |
+|---|---|
+| `plant_grading_engine.py` | Deterministic 3-tier grading engine (pure, no I/O) |
+| `grading_policy.yaml` | Candidate thresholds and severity mapping |
+| `data.yaml` | 4-class YOLO dataset schema |
+| `local_inference.py` | Live inference loop with CoreML/PyTorch |
+| `capture_dataset.py` | Five-view known-grade capture with manifest |
+| `baseline_verify.py` | Camera + model FPS benchmark |
+| `scripts/download_universe_datasets.py` | Roboflow Universe multi-dataset download/merge |
+| `scripts/train_yolo26n.py` | YOLO26n training pipeline |
+| `scripts/split_profiles.py` | Deterministic profile-level dataset splitting |
 
 ---
 
-## Algorithmic Grading Matrix
+## Status
 
-Grading is computed deterministically in `compute_grade()`.
+This is an engineering prototype. The current model artifact is a COCO placeholder until the training pipeline is run against the merged Universe dataset. Production claims begin only after:
 
-### Inputs
-
-* defect count
-* defect severity weights
-* area coverage ratio
-
-### Grade Logic
-
-| Grade | Condition | Output |
-|-------|-----------|--------|
-| G1 | no defects OR minimal mild defects | green |
-| G2 | moderate defects OR 5–15% coverage | orange |
-| G3 | structural defects OR >15% coverage | red |
-| DISCARD | Class 1 proximity event | reject |
+1. The merged dataset is downloaded and verified
+2. YOLO26n is trained and evaluated on held-out profiles
+3. A real household trial passes the gates
 
 ---
 
-## Spatial Binding Engine
+## License
 
-Defect-to-apple association is computed via IoA:
-
-```
-IoA = Intersection Area / Defect Area
-```
-
-Binding condition:
-
-```
-IoA ≥ 0.10 → attach defect to apple instance
-```
-
-This avoids centroid instability in dense cluster environments.
-
----
-
-## Data Lifecycle Architecture
-
-```
-RAW CAPTURE
-  → Arducam MJPG stream
-  → dataset/raw_ingest/
-
-MANUAL ANNOTATION
-  → Roboflow labeling
-  → Class 0: apple
-  → Class 1: discard trigger
-  → Class 2-N: defects
-
-CLOUD TRAINING
-  → YOLO11 (1024px)
-  → Export CoreML (.mlpackage)
-
-EDGE DEPLOYMENT
-  → M4 Neural Engine
-  → local_inference.py execution
-  → real-time grading
-```
-
----
-
-## Operational Pipeline
-
-### 1. Environment Setup
-
-```bash
-cd apple-quality-recognition-engine
-python3 -m venv ../venv
-source ../venv/bin/activate
-pip install -r requirements.txt
-```
-
-### 2. Hardware Verification
-
-```bash
-python baseline_verify.py
-```
-
-Verifies camera + baseline inference.
-
-### 3. Production Inference
-
-```bash
-python local_inference.py
-```
-
-Real-time grading with colors:
-
-- Green → G1
-- Orange → G2
-- Red → G3 / DISCARD
-
-### 4. Dataset Capture
-
-```bash
-python capture_dataset.py
-```
-
-Behavior:
-
-* 1280×720 raw capture
-* spacebar triggers multi-angle capture
-* frames stored unprocessed
-
----
-
-## Edge Learning System
-
-Frames in the 0.40–0.65 confidence band are automatically saved to `dataset/edge_harvest/` with full telemetry. This creates the raw material for future continuous improvement.
-
-Each entry includes:
-
-* bounding boxes
-* class IDs
-* confidence scores
-* timestamp metadata
-
----
-
-## Operator Controls
-
-| Key | Action |
-|-----|--------|
-| g | Log grading disagreement |
-| q | Quit |
-| space | Capture dataset frame (in capture script) |
-
----
-
-## Operational Roadmap (Honest Status — June 2026)
-
-| Milestone | Status |
-|-----------|--------|
-| Hardware integration + reconnection | Complete |
-| Sandbox validation | Complete |
-| Dataset capture | Active |
-| Dynamic grading policy engine | Complete |
-| Deterministic grading + spatial binding | Complete |
-| Annotation pipeline | Pending |
-| Cloud training / model export | Pending |
-| Full CoreML production deployment | Pending (model loading in place) |
-| Closed-loop continuous learning | Pending |
-
----
-
-## Engineering Logbook
-
-### Day 1 — Hardware Validation
-
-Verified Arducam ingestion pipeline and MPS acceleration on Apple Silicon. Established baseline inference stability at 40 FPS.
-
-### Day 2 — Requirement Collapse
-
-Facility verification invalidated USDA-style grading assumptions. System restructured around 3-tier operational reality.
-
-### Day 3 — Feature Detector Migration
-
-Removed variety-grade coupling. Transitioned to 13-class feature detection model with deterministic grading engine.
-
-### Day 4 — Dynamic Schema Deployment
-
-Implemented runtime class discovery. Eliminated inference-time coupling to dataset taxonomy. Introduced IoA spatial binding and operator override telemetry.
-
-### Day 5+ — Hardware Hardening & Policy Engine (June 2026)
-
-Deployed robust camera reconnection logic. Built configurable grading policy system. Foundation ready for model training and continuous learning loop.
-
----
-
-## Closing Statement
-
-This system optimizes for **operational truth on real hardware**, not model complexity.
-
-A neural network can be wrong about a fruit.
-A system misaligned with facility rules is useless.
-
-Reality remains the final authority.
-
-**Next steps:** Focus on building a small annotated dataset and getting a working CoreML model deployed. Update this README again once training and annotation are active.
-
-⸻
+See `LICENSE` for details.

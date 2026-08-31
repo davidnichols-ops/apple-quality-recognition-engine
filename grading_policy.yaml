@@ -1,25 +1,46 @@
-# Facility Grading Policy Profile Configuration
-facility_id: "DSM_COLD_STORAGE_01"
+# Plant Health Grading Policy — candidate calibration values.
+#
+# Thresholds are calibration parameters, not claims of compliance.
+# Promote changes only after held-out profile evaluation and human approval.
+
+facility_id: "HOUSEHOLD_BOTANICAL_CHECK"
+policy_version: "1.0.0-candidate"
+
+# Per-leaf grading: a leaf is graded from the defects bound to it.
+# Per-plant grading: the plant grade is derived from the aggregate of
+# leaf grades (worst visible leaf + percentage of unhealthy leaves).
+#
+# Health grades: HEALTHY / MODERATE / POOR / DISCARD
 
 severity_mapping:
-  mild_defects:
-    - "z_bruise"
-    - "z_russeting"
-  moderate_defects:
-    - "z_scarf_skin"
-    - "z_sunburn"
-    - "z_stem_puncture"
-    - "z_scab"
-    - "z_sooty_blotch_flyspeck"
-  severe_defects:
-    - "z_split_crack"
-    - "z_misshapen"
-    - "z_rot"
-    - "z_insect_damage"
+  # class_defect is the single generic defect class in the 4-class schema.
+  # Severity is determined by coverage area on the leaf, not by subclass.
+  # When specific defect subclasses are added later (indices 4-N), they
+  # can be mapped here.
+  mild_defects: []
+  moderate_defects: []
+  severe_defects: []
 
 rules:
-  max_mild_for_g1: 2
-  max_moderate_for_g2: 1
-  area_threshold_g2_pct: 5.0
-  area_threshold_g3_pct: 15.0
-  ioa_binding_threshold: 0.10
+  # Per-leaf thresholds
+  max_defects_for_healthy_leaf: 2
+  max_defects_for_moderate_leaf: 5
+  leaf_area_threshold_moderate_pct: 5.0
+  leaf_area_threshold_poor_pct: 15.0
+
+  # Per-plant thresholds (aggregate over all leaves)
+  max_poor_leaves_for_moderate_plant: 1
+  unhealthy_leaf_pct_threshold_poor: 40.0
+
+  # IoA binding
+  defect_to_leaf_ioa_threshold: 0.10
+  leaf_to_plant_ioa_threshold: 0.10
+
+  # Discard proximity
+  discard_proximity_px: 50
+
+  # Refinement margin for boundary cases
+  refinement_margin_pct: 2.0
+
+  # Multi-view profile
+  expected_profile_views: 5

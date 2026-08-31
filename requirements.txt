@@ -3,3 +3,5 @@ coremltools
 opencv-python
 roboflow
 pyyaml
+pytest
+pyflakes

@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: ["household-sandbox-demo", main]
+  pull_request:
+    branches: ["household-sandbox-demo", main"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install pyflakes pytest pyyaml
+
+      - name: Pyflakes
+        run: |
+          pyflakes plant_grading_engine.py capture_dataset.py local_inference.py baseline_verify.py scripts/*.py tests/*.py
+
+      - name: Compile check
+        run: |
+          python -m py_compile plant_grading_engine.py capture_dataset.py local_inference.py baseline_verify.py scripts/*.py
+
+      - name: Tests
+        run: |
+          python -m pytest tests/ -v
