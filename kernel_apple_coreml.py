@@ -11,17 +11,16 @@ This module loads a pre-exported ``.mlpackage`` file. It does NOT handle model e
 step done via ``yolo export format=coreml half=True imgsz=640``. At runtime, only coremltools is needed (not
 ultralytics).
 
-Accuracy (YOLO26x, COCO128 mAP, validated on Apple M4):
-    PyTorch MPS FP32 @640 (baseline):  mAP50=0.818, mAP50-95=0.656
-    CoreML FP16 @640 (default):        mAP50=0.819, mAP50-95=0.661  (+0.1% — within noise, zero accuracy loss)
+Historical development benchmark (YOLO26x, COCO128, Apple M4):
+    PyTorch MPS FP32 @640:  mAP50=0.818, mAP50-95=0.656, 144 ms
+    CoreML FP16 @640:       mAP50=0.819, mAP50-95=0.661, 25 ms
 
-Benchmark (YOLO26x, Apple M4, median of 100 runs, raw forward):
-    PyTorch MPS FP32 @640:  144 ms
-    CoreML FP16 ANE @640:    25 ms  (5.8×, +0.1% mAP — zero accuracy loss)
+These numbers are not evidence for the custom apple model. Re-run export parity,
+latency, and sustained thermal tests for every candidate checkpoint.
 
 Examples:
     >>> from kernel_apple_coreml import register_apple_coreml
-    >>> register_apple_coreml()  # FP16, 640×640, ANE, zero accuracy loss, 5.8× speedup
+    >>> register_apple_coreml()
 """
 
 from __future__ import annotations
@@ -69,7 +68,9 @@ def _ensure_model(
         import coremltools as ct
 
         if not Path(model_path).exists():
-            raise FileNotFoundError(f"kernel_apple_coreml: model not found: {model_path}")
+            raise FileNotFoundError(
+                f"kernel_apple_coreml: model not found: {model_path}"
+            )
 
         # CPU_AND_NE (Neural Engine) is the fast path. CPU_AND_GPU crashes with MLIR pass manager errors
         # for YOLO26x's attention layers (MPSGraph bug). The ANE is also faster than the GPU for conv workloads.
@@ -83,7 +84,12 @@ def _ensure_model(
             "precision": precision,
         }
         _coreml_cache[key] = entry
-        LOGGER.info("kernel_apple_coreml: CoreML model loaded (ANE, %s, %dx%d)", precision, imgsz, imgsz)
+        LOGGER.info(
+            "kernel_apple_coreml: CoreML model loaded (ANE, %s, %dx%d)",
+            precision,
+            imgsz,
+            imgsz,
+        )
         return entry
 
 
@@ -147,12 +153,14 @@ def register_apple_coreml(
 
     Args:
         priority (int): Dispatcher priority; higher wins among matching backends. Default 10.
-        imgsz (int): Input resolution for the CoreML model. 640 (default) preserves full accuracy.
-        precision (str): "fp16" (default) for zero accuracy loss, or "int8" for -1.5% mAP at higher speed.
+        imgsz (int): Input resolution for the CoreML model. Default 640; validate per checkpoint.
+        precision (str): CoreML precision label. Validate accuracy and latency per checkpoint.
         model_path (str): Path to the pre-exported ``.mlpackage`` file.
     """
     if not torch.backends.mps.is_available():
-        LOGGER.debug("kernel_apple_coreml: MPS unavailable, registration is a no-op (fallback will be used)")
+        LOGGER.debug(
+            "kernel_apple_coreml: MPS unavailable, registration is a no-op (fallback will be used)"
+        )
         return
 
     def _impl(image, weights="yolo26x.pt"):

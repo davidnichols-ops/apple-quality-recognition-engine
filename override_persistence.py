@@ -6,8 +6,8 @@ Apple Quality Recognition Engine
 Dedicated persistence module for operator grading disagreements.
 When an operator presses 'g' in local_inference.py, the computed grade
 for the current frame is logged here — separate from the general
-edge_harvest directory — so the CEO gets a clean view of disagreement
-hotspots for active-learning retraining cycles.
+edge_harvest directory so human reviewers can inspect disagreement hotspots
+before any annotation, policy, or retraining decision.
 
 Storage layout:
     dataset/operator_overrides/<YYYY-MM-DD>/
@@ -89,6 +89,7 @@ def persist_override(
     output_dir: str = "dataset/operator_overrides",
     operator_note: str = "",
     policy_path: str = "grading_policy.yaml",
+    facility_id: Optional[str] = None,
 ) -> OperatorOverride:
     """Persist a single operator override event to disk.
 
@@ -105,6 +106,7 @@ def persist_override(
         output_dir: Root directory for override storage.
         operator_note: Optional free-text note from the operator.
         policy_path: Path to grading_policy.yaml for facility_id lookup.
+        facility_id: Validated facility identifier from the active policy.
 
     Returns:
         The persisted :class:`OperatorOverride` record.
@@ -122,9 +124,10 @@ def persist_override(
     json_path = os.path.join(day_dir, f"{file_stem}.json")
 
     # Save frame snapshot
-    cv2.imwrite(frame_path, frame)
+    if not cv2.imwrite(frame_path, frame):
+        raise RuntimeError(f"Failed to write override frame: {frame_path}")
 
-    facility_id = _load_facility_id(policy_path)
+    facility_id = facility_id or _load_facility_id(policy_path)
 
     record = OperatorOverride(
         timestamp=now.isoformat(),
@@ -175,18 +178,22 @@ def load_overrides(
         try:
             with open(json_path, "r") as fh:
                 payload = json.load(fh)
-            records.append(OperatorOverride(
-                timestamp=payload.get("timestamp", ""),
-                frame_path=payload.get("frame_path", ""),
-                detections=payload.get("detections", []),
-                grading_result=payload.get("grading_result", []),
-                operator_note=payload.get("operator_note", ""),
-                facility_id=payload.get("facility_id", _DEFAULT_FACILITY_ID),
-            ))
+            records.append(
+                OperatorOverride(
+                    timestamp=payload.get("timestamp", ""),
+                    frame_path=payload.get("frame_path", ""),
+                    detections=payload.get("detections", []),
+                    grading_result=payload.get("grading_result", []),
+                    operator_note=payload.get("operator_note", ""),
+                    facility_id=payload.get("facility_id", _DEFAULT_FACILITY_ID),
+                )
+            )
         except (json.JSONDecodeError, KeyError) as exc:
             # Skip corrupt records but keep going.
-            print(f"[override_persistence] WARNING: skipping malformed "
-                  f"override file {json_path}: {exc}")
+            print(
+                f"[override_persistence] WARNING: skipping malformed "
+                f"override file {json_path}: {exc}"
+            )
             continue
 
     # Sort by timestamp ascending (filename sort already handles this,

@@ -3,13 +3,14 @@
 Edge Harvest Re-Ingest Script
 Apple Quality Recognition Engine
 
-Scans ``dataset/edge_harvest/`` for harvested frames (low-confidence
-detections and operator overrides) and promotes them into
-``dataset/raw_ingest/`` for re-annotation in the next active-learning
-cycle.
+Scans ``dataset/edge_harvest/`` for harvested frames and promotes only
+records carrying ``review_status: approved`` into ``dataset/raw_ingest/``.
+VLM-reviewed or pending records remain quarantined until a human marks them
+approved.
 
 A manifest CSV is generated at ``dataset/raw_ingest/manifest_<timestamp>.csv``
-with columns: timestamp, source_path, operator_override, frame_hash.
+with columns: timestamp, source_path, operator_override, frame_hash,
+reviewed_by, and reviewed_at.
 
 Usage:
     python scripts/reingest_harvest.py [--since 2026-07-01] [--limit 50]
@@ -34,7 +35,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from edge_harvest_schema import validate_telemetry  # noqa: E402
+from edge_harvest_schema import compute_file_hash, validate_telemetry  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -59,9 +60,11 @@ def _scan_harvest_dir(
     Returns:
         List of dicts with keys: ``date``, ``telemetry_path``,
         ``frame_path``, ``timestamp``, ``operator_override``,
-        ``frame_hash``.
+        ``frame_hash``, and ``review_status``. Only approved records are returned.
     """
     results: List[Dict[str, str]] = []
+    if since is not None:
+        datetime.strptime(since, "%Y-%m-%d")
 
     if not os.path.isdir(harvest_dir):
         return results
@@ -90,22 +93,37 @@ def _scan_harvest_dir(
             # Load telemetry to extract metadata for the manifest.
             try:
                 import json
+
                 with open(telemetry_path, "r") as fh:
                     payload = json.load(fh)
                 validate_telemetry(payload)
+                if compute_file_hash(frame_path) != payload["frame_hash"]:
+                    print(f"[reingest] WARNING: frame hash mismatch: {frame_path}")
+                    continue
+                if payload.get("review_status") != "approved":
+                    continue
             except Exception as exc:
-                print(f"[reingest] WARNING: skipping malformed telemetry "
-                      f"{telemetry_path}: {exc}")
+                print(
+                    f"[reingest] WARNING: skipping malformed telemetry "
+                    f"{telemetry_path}: {exc}"
+                )
                 continue
 
-            results.append({
-                "date": entry,
-                "telemetry_path": telemetry_path,
-                "frame_path": frame_path,
-                "timestamp": payload.get("timestamp", ""),
-                "operator_override": str(payload.get("operator_override", False)),
-                "frame_hash": payload.get("frame_hash", ""),
-            })
+            results.append(
+                {
+                    "date": entry,
+                    "telemetry_path": telemetry_path,
+                    "frame_path": frame_path,
+                    "timestamp": payload.get("timestamp", ""),
+                    "operator_override": str(payload.get("operator_override", False)),
+                    "frame_hash": payload.get("frame_hash", ""),
+                    "review_status": payload.get(
+                        "review_status", "pending_human_review"
+                    ),
+                    "reviewed_by": payload.get("reviewed_by", ""),
+                    "reviewed_at": payload.get("reviewed_at", ""),
+                }
+            )
 
     return results
 
@@ -142,7 +160,14 @@ def promote_frames(
     with open(manifest_path, "w", newline="") as csv_fh:
         writer = csv.DictWriter(
             csv_fh,
-            fieldnames=["timestamp", "source_path", "operator_override", "frame_hash"],
+            fieldnames=[
+                "timestamp",
+                "source_path",
+                "operator_override",
+                "frame_hash",
+                "reviewed_by",
+                "reviewed_at",
+            ],
         )
         writer.writeheader()
 
@@ -156,12 +181,18 @@ def promote_frames(
                 continue
 
             shutil.copy2(src, dest_path)
-            writer.writerow({
-                "timestamp": entry["timestamp"],
-                "source_path": src,
-                "operator_override": entry["operator_override"],
-                "frame_hash": entry["frame_hash"],
-            })
+            if compute_file_hash(dest_path) != entry["frame_hash"]:
+                raise RuntimeError(f"Copied frame failed integrity check: {dest_path}")
+            writer.writerow(
+                {
+                    "timestamp": entry["timestamp"],
+                    "source_path": src,
+                    "operator_override": entry["operator_override"],
+                    "frame_hash": entry["frame_hash"],
+                    "reviewed_by": entry["reviewed_by"],
+                    "reviewed_at": entry["reviewed_at"],
+                }
+            )
             promoted += 1
 
     print(f"[reingest] Promoted {promoted} frame(s) to {dest_dir}")

@@ -1,31 +1,14 @@
-# data.yaml
-# Production Specification (Feature Detector Pipeline)
-# Dynamic Schema: Class 0 = apple, Class 1 = unfit_bin_discard, Classes 2-N = dynamic defects
-# Total Classes: 13 (0-12) - defect count scales dynamically based on dataset diversity
+# Three-class feature detector. Reference grades live in capture metadata,
+# not in YOLO labels. Split lists must be generated at profile level so all
+# five views of one apple remain in the same partition.
 
 path: ./apple_dataset
-train: images/train
-val: images/val
-test: images/test
+train: splits/train.txt
+val: splits/val.txt
+test: splits/test.txt
 
-nc: 13
+nc: 3
 names:
-  # --- MACRO PARENT BOX ---
   0: apple
-
-  # --- DISCARD TRIGGER ---
   1: unfit_bin_discard
-
-  # --- MICRO DEFECT OVERLAY (Dynamic Indices 2-N) ---
-  # Add or remove defect classes below as needed - local_inference.py auto-scales
-  2: z_bruise
-  3: z_russeting
-  4: z_scarf_skin
-  5: z_sunburn
-  6: z_stem_puncture
-  7: z_split_crack
-  8: z_misshapen
-  9: z_scab
-  10: z_sooty_blotch_flyspeck
-  11: z_rot
-  12: z_insect_damage
+  2: class_defect

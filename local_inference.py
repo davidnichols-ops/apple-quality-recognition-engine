@@ -3,22 +3,29 @@
 Production Local Inference Script
 Apple CoreML Deployment on M4 Neural Engine
 Target: MacBook Air M4 (macOS 26 Tahoe / Darwin 25.5.0)
-Feature Detector Pipeline: Dynamic Schema Architecture
-Base model: YOLO26x (FP16 CoreML export, 640x640, ANE-accelerated via kernel dispatch)
+Feature Detector Pipeline: Three-Class Schema Architecture
+Candidate model: YOLO26 CoreML export at 640x640; deployment size selected by benchmark
 """
 
 import argparse
-import glob
-import cv2
-import time
-import json
 import os
-import yaml
-from datetime import datetime
+import time
+from dataclasses import asdict
+
+import cv2
 from ultralytics import YOLO
 
 from camera_utils import detect_arducam_index
-from kernel_apple_coreml import register_apple_coreml
+from edge_harvest_schema import write_telemetry
+from grading_engine import (
+    EXPECTED_CLASS_NAMES,
+    bind_defects_to_parents,
+    discard_parent_indexes,
+    grade_apple,
+    load_grading_policy,
+    model_names_match_expected_schema,
+)
+from override_persistence import persist_override
 
 
 def capture_frame_hardened(cap, camera_index=0, max_retries=5):
@@ -44,14 +51,16 @@ def capture_frame_hardened(cap, camera_index=0, max_retries=5):
     time.sleep(1.0)
 
     for attempt in range(1, max_retries + 1):
-        print(f"[RETRYING]: Attempt {attempt}/{max_retries} — re-binding Arducam sensor...")
+        print(
+            f"[RETRYING]: Attempt {attempt}/{max_retries} — re-binding Arducam sensor..."
+        )
         time.sleep(2.0)
         cap = cv2.VideoCapture(camera_index)
         if not cap.isOpened():
             continue
 
         # Re-apply camera settings after reconnection
-        cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+        cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
@@ -72,268 +81,105 @@ def capture_frame_hardened(cap, camera_index=0, max_retries=5):
 
         cap.release()
 
-    print(f"[ERROR]: Failed to re-establish Arducam connection after {max_retries} attempts.")
+    print(
+        f"[ERROR]: Failed to re-establish Arducam connection after {max_retries} attempts."
+    )
     return cap, None
 
 
-def load_grading_policy(policy_path="grading_policy.yaml"):
-    """Load grading policy from YAML configuration file."""
-    if not os.path.exists(policy_path):
-        print(f"[ERROR]: Grading policy file not found: {policy_path}")
-        available = glob.glob("*_grading_policy.yaml")
-        if available:
-            print("[SYSTEM]: Available *_grading_policy.yaml files in this directory:")
-            for f in available:
-                print(f"    - {f}")
-        else:
-            print("[SYSTEM]: No *_grading_policy.yaml files found in this directory.")
-        print("[SYSTEM]: Falling back to default grading rules")
-        return {'z_bruise', 'z_russeting'}, \
-               {'z_scarf_skin', 'z_sunburn', 'z_stem_puncture', 'z_scab', 'z_sooty_blotch_flyspeck'}, \
-               {'z_split_crack', 'z_misshapen', 'z_rot', 'z_insect_damage'}, \
-               {'max_mild_for_g1': 2, 'max_moderate_for_g2': 1, 'area_threshold_g2_pct': 5.0, 'area_threshold_g3_pct': 15.0, 'ioa_binding_threshold': 0.10}
-
-    try:
-        with open(policy_path, 'r') as file:
-            policy = yaml.safe_load(file)
-
-        # Extract facility identifier so the operator knows which profile is active
-        facility_id = policy.get('facility_id', 'UNKNOWN')
-        print(f"[SYSTEM]: Loading grading policy from {policy_path}")
-        print(f"[SYSTEM]: Facility ID: {facility_id}")
-
-        # Extract the dynamic severity lists directly from the file
-        mild = set(policy['severity_mapping']['mild_defects'])
-        moderate = set(policy['severity_mapping']['moderate_defects'])
-        severe = set(policy['severity_mapping']['severe_defects'])
-
-        # Extract rules
-        rules = policy['rules']
-
-        print(f"[SYSTEM]: Successfully loaded live grading rules from {policy_path}")
-        print(f"[SYSTEM]: Severe triggers: {severe}")
-        return mild, moderate, severe, rules
-    except Exception as e:
-        print(f"[ERROR]: Failed to load grading policy: {e}")
-        print("[SYSTEM]: Falling back to default grading rules")
-        # Return default values if file loading fails
-        return {'z_bruise', 'z_russeting'}, \
-               {'z_scarf_skin', 'z_sunburn', 'z_stem_puncture', 'z_scab', 'z_sooty_blotch_flyspeck'}, \
-               {'z_split_crack', 'z_misshapen', 'z_rot', 'z_insect_damage'}, \
-               {'max_mild_for_g1': 2, 'max_moderate_for_g2': 1, 'area_threshold_g2_pct': 5.0, 'area_threshold_g3_pct': 15.0, 'ioa_binding_threshold': 0.10}
-
-
-def calculate_defect_area(box):
-    """Calculate pixel area of a bounding box."""
-    x1, y1, x2, y2 = box
-    return (x2 - x1) * (y2 - y1)
-
-
-def calculate_intersection_area(box1, box2):
-    """
-    Calculate the intersection area between two bounding boxes.
-    Returns 0 if boxes do not intersect.
-    """
-    x1, y1, x2, y2 = box1
-    px1, py1, px2, py2 = box2
-    
-    # Calculate intersection coordinates
-    ix1 = max(x1, px1)
-    iy1 = max(y1, py1)
-    ix2 = min(x2, px2)
-    iy2 = min(y2, py2)
-    
-    # If no intersection, return 0
-    if ix2 <= ix1 or iy2 <= iy1:
-        return 0
-    
-    return (ix2 - ix1) * (iy2 - iy1)
-
-
-def calculate_ioa(defect_box, parent_box):
-    """
-    Calculate Intersection-over-Area (IoA) ratio.
-    IoA = intersection_area / defect_box_area
-    """
-    intersection = calculate_intersection_area(defect_box, parent_box)
-    defect_area = calculate_defect_area(defect_box)
-    
-    if defect_area == 0:
-        return 0.0
-    
-    return intersection / defect_area
-
-
-def compute_grade(defects, parent_area, mild_defects, moderate_defects, severe_defects, rules):
-    """
-    Deterministic scoring function based on defect count, type, and area coverage.
-    Returns: Grade string ('G1', 'G2', 'G3') or 'DISCARD'
-    """
-    if not defects:
-        return 'G1'
-    
-    total_defect_area = sum(calculate_defect_area(d['box']) for d in defects)
-    area_ratio = total_defect_area / parent_area if parent_area > 0 else 0
-    
-    # Count by severity
-    mild_count = sum(1 for d in defects if d['name'] in mild_defects)
-    severe_count = sum(1 for d in defects if d['name'] in severe_defects)
-    moderate_count = sum(1 for d in defects if d['name'] in moderate_defects)
-    
-    # Extract threshold rules
-    max_mild_for_g1 = rules.get('max_mild_for_g1', 2)
-    max_moderate_for_g2 = rules.get('max_moderate_for_g2', 1)
-    area_threshold_g2 = rules.get('area_threshold_g2_pct', 5.0) / 100.0
-    area_threshold_g3 = rules.get('area_threshold_g3_pct', 15.0) / 100.0
-    
-    # Grade determination logic
-    if severe_count > 0 or area_ratio > area_threshold_g3:
-        return 'G3'
-    elif mild_count > max_mild_for_g1 or moderate_count > max_moderate_for_g2 or area_ratio > area_threshold_g2:
-        return 'G2'
-    else:
-        return 'G1'
-
-
 def format_display_text(class_name, confidence, grade=None):
-    """
-    Format display string for predictions.
-    Example: "APPLE (G2) [0.89]" or "BRUISE [0.76]"
-    """
-    if class_name == 'apple':
+    if class_name == "apple":
         grade_str = f" ({grade})" if grade else ""
         return f"APPLE{grade_str} [{confidence:.2f}]"
-    elif class_name == 'unfit_bin_discard':
+    if class_name == "unfit_bin_discard":
         return f"DISCARD [{confidence:.2f}]"
-    else:
-        # Defect class - strip z_ prefix
-        defect_name = class_name.replace('z_', '').upper()
-        return f"{defect_name} [{confidence:.2f}]"
-
-
-def save_edge_harvest_frame(frame, detections, harvest_dir, operator_override=False):
-    """
-    Save frame and telemetry if any detection confidence falls in volatile threshold (0.40-0.65)
-    or if operator override is triggered.
-    """
-    volatile_detections = [d for d in detections if 0.40 <= d['conf'] <= 0.65]
-
-    # Only save if volatile detections exist OR operator override is triggered
-    if not volatile_detections and not operator_override:
-        return
-
-    # Create harvest directory only when we actually have something to save
-    os.makedirs(harvest_dir, exist_ok=True)
-    
-    # Generate timestamp-based filename
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-    frame_path = os.path.join(harvest_dir, f"frame_{timestamp}.jpg")
-    telemetry_path = os.path.join(harvest_dir, f"telemetry_{timestamp}.json")
-    
-    # Save frame
-    cv2.imwrite(frame_path, frame)
-    
-    # Save telemetry
-    telemetry = {
-        "timestamp": timestamp,
-        "frame_path": frame_path,
-        "operator_override": operator_override,
-        "volatile_detections": [
-            {
-                "class_id": d['id'],
-                "class_name": d['name'],
-                "confidence": d['conf'],
-                "box": d['box']
-            }
-            for d in volatile_detections
-        ]
-    }
-    
-    with open(telemetry_path, 'w') as f:
-        json.dump(telemetry, f, indent=2)
-    
-    if operator_override:
-        print("[OVERRIDE LOGGED] Manual mismatch recorded to harvest cache.")
-    else:
-        print(f"[EDGE HARVEST]: Saved volatile frame to {frame_path}")
+    return f"DEFECT [{confidence:.2f}]"
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Apple Quality Recognition Engine - Production Inference")
-    parser.add_argument("--policy", default="grading_policy.yaml",
-                        help="Path to grading policy YAML file (default: grading_policy.yaml)")
-    parser.add_argument("--no-display", action="store_true",
-                        help="Skip cv2.imshow for headless benchmarking (faster FPS)")
+    parser = argparse.ArgumentParser(
+        description="Apple Quality Recognition Engine - Production Inference"
+    )
+    parser.add_argument("--policy", default="grading_policy.yaml")
+    parser.add_argument("--model", default="yolo26x_640.mlpackage")
+    parser.add_argument("--no-display", action="store_true")
+    parser.add_argument(
+        "--allow-camera-fallback",
+        action="store_true",
+        help="Allow the built-in camera for a non-production benchmark.",
+    )
+    parser.add_argument(
+        "--benchmark-fallback",
+        action="store_true",
+        help="Use yolo26x.pt only when the requested model is unavailable.",
+    )
     args = parser.parse_args()
 
     print("[SYSTEM]: Initializing M4 Edge Sorting Pipeline Engine...")
+    policy = load_grading_policy(args.policy)
+    print(f"[SYSTEM]: Policy {policy.policy_version} for facility {policy.facility_id}")
 
-    # Load grading policy from configuration file
-    MILD_DEFECTS, MODERATE_DEFECTS, SEVERE_DEFECTS, GRADING_RULES = load_grading_policy(args.policy)
-    
     # Initialize camera with auto-detected index (matches baseline_verify.py)
-    cam_index = detect_arducam_index()
+    cam_index = detect_arducam_index(allow_builtin_fallback=args.allow_camera_fallback)
     cap = cv2.VideoCapture(cam_index)
-    
+
     if not cap.isOpened():
         print("[ERROR]: Failed to open camera. Check index or macOS permissions.")
         return
-    
+
     # Force raw uncompressed streaming with MJPG fourcc encoding
-    cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+    cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-    
+
     actual_width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
     actual_height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-    print(f"[SYSTEM]: Camera configured at {actual_width}x{actual_height} with MJPG encoding")
+    print(
+        f"[SYSTEM]: Camera configured at {actual_width}x{actual_height} with MJPG encoding"
+    )
 
     # Warmup: discard first few frames — USB cameras on macOS return empty
     # or corrupt frames before the sensor fully initializes.
     for i in range(5):
         ret, _ = cap.read()
         if ret:
-            print(f"[SYSTEM]: Camera warmup frame {i+1}/5 OK")
+            print(f"[SYSTEM]: Camera warmup frame {i + 1}/5 OK")
         else:
-            print(f"[SYSTEM]: Camera warmup frame {i+1}/5 failed (retrying...)")
+            print(f"[SYSTEM]: Camera warmup frame {i + 1}/5 failed (retrying...)")
     print("[SYSTEM]: Camera warmup complete.")
-    
-    # Load the CoreML FP16 model (exported at 640x640, runs on ANE)
-    # The kernel dispatcher is registered so future operation-level kernels
-    # (Metal upsample, etc.) can be adopted transparently.
-    print("[SYSTEM]: Registering kernel dispatcher (CoreML backend, ANE, 640x640)...")
-    register_apple_coreml()
 
-    model_path = "yolo26x_640.mlpackage"
+    model_path = args.model
     if not os.path.exists(model_path):
-        print(f"[ERROR]: {model_path} not found. Falling back to yolo26x.pt (PyTorch MPS).")
-        model_path = "yolo26x.pt"
+        if not args.benchmark_fallback:
+            raise FileNotFoundError(
+                f"Model not found: {model_path}. Pass --benchmark-fallback only for "
+                "a non-production COCO benchmark."
+            )
+        fallback = "yolo26x.pt"
+        print(f"[WARNING]: {model_path} not found; using {fallback} for benchmarking.")
+        model_path = fallback
 
     print(f"[SYSTEM]: Loading model '{model_path}'...")
     model = YOLO(model_path, task="detect")
-
-    print("[SYSTEM]: M4 Neural Engine backend active. Press 'q' to exit.")
-
-    # Dynamic schema configuration
     num_classes = len(model.names)
-    print(f"[SYSTEM]: Loaded model with {num_classes} dynamic classes")
-    print(f"[SYSTEM]: Class 0 = apple, Class 1 = unfit_bin_discard, Classes 2-{num_classes-1} = dynamic defects")
-
-    # Schema guard: warn if the model wasn't trained on the apple dataset
-    benchmark_mode = num_classes != 13 or model.names.get(0) != "apple"
+    benchmark_mode = not model_names_match_expected_schema(model.names)
+    print(f"[SYSTEM]: Loaded model with {num_classes} classes")
+    print(f"[SYSTEM]: Expected schema: {EXPECTED_CLASS_NAMES}")
     if benchmark_mode:
-        print("[WARNING]: Model class schema does not match data.yaml (expected 13 classes, class 0 = 'apple').")
-        print(f"[WARNING]: Got {num_classes} classes, class 0 = '{model.names.get(0)}'.")
-        print("[WARNING]: This is expected for the COCO-pretrained placeholder model.")
-        print("[WARNING]: Apple sorting will NOT work correctly until T-006 (custom training) is complete.")
-        print("[WARNING]: Proceeding in BENCHMARK MODE — FPS numbers are valid, detections are not.")
-        print("[WARNING]: Edge harvesting disabled in benchmark mode (COCO detections are not apples).")
-    
+        print(f"[WARNING]: Model schema mismatch: {model.names}")
+        print(
+            "[WARNING]: BENCHMARK MODE — grades are disabled and detections are not harvested."
+        )
+    else:
+        print("[SYSTEM]: Three-class candidate schema active. Press 'q' to exit.")
+
     # Edge harvest directory
     harvest_dir = "dataset/edge_harvest"
 
+    frame_count = 0
     try:
         while True:
+            frame_count += 1
             start_time = time.time()
 
             cap, frame = capture_frame_hardened(cap, camera_index=cam_index)
@@ -343,7 +189,6 @@ def main():
                 print("[ERROR]: No frame available. Exiting inference loop.")
                 break
 
-            # Run inference through CoreML ANE (6.2x faster than PyTorch MPS)
             results = model(frame, conf=0.35, imgsz=640, verbose=False)
 
             parent_boxes = []
@@ -351,80 +196,83 @@ def main():
             defect_boxes = []
             all_detections = []
 
-            # --- STAGE 1: INSTANCE PARSING (Dynamic Schema Paradigm) ---
             for box in results[0].boxes:
                 cls_id = int(box.cls[0])
                 coords = list(map(int, box.xyxy[0]))
-                conf = float(box.conf[0])
-                flat_name = model.names[cls_id]
-
-                detection = {"id": cls_id, "name": flat_name, "box": coords, "conf": conf}
+                confidence = float(box.conf[0])
+                class_name = model.names[cls_id]
+                detection = {
+                    "id": cls_id,
+                    "name": class_name,
+                    "box": coords,
+                    "conf": confidence,
+                }
                 all_detections.append(detection)
-
-                if cls_id == 0:  # apple - Universal Macro Parent Box
-                    parent_boxes.append({"id": cls_id, "name": flat_name, "box": coords, "conf": conf, "defects": []})
-                elif cls_id == 1:  # unfit_bin_discard - Discard Trigger
+                if benchmark_mode:
+                    continue
+                if class_name == "apple":
+                    parent_boxes.append({**detection, "defects": []})
+                elif class_name == "unfit_bin_discard":
                     discard_triggers.append(detection)
-                elif cls_id >= 2 and cls_id < num_classes:  # Dynamic defect classes (Indices 2 to N)
+                elif class_name == "class_defect":
                     defect_boxes.append(detection)
 
-            # --- STAGE 2: DISCARD SEQUENCE CHECK ---
-            # If discard trigger detected inside or near any parent box cluster, mark for discard
-            discard_mode = False
-            if discard_triggers:
-                for trigger in discard_triggers:
-                    tx1, ty1, tx2, ty2 = trigger["box"]
-                    tcx, tcy = (tx1 + tx2) / 2, (ty1 + ty2) / 2
+            parent_coordinates = [parent["box"] for parent in parent_boxes]
+            defect_coordinates = [defect["box"] for defect in defect_boxes]
+            bindings = bind_defects_to_parents(
+                defect_coordinates,
+                parent_coordinates,
+                policy.ioa_binding_threshold,
+            )
+            for parent_index, defect_indexes in enumerate(bindings):
+                parent_boxes[parent_index]["defects"] = [
+                    defect_boxes[index] for index in defect_indexes
+                ]
+            bound_defect_indexes = {
+                defect_index
+                for defect_indexes in bindings
+                for defect_index in defect_indexes
+            }
+            orphan_defect_count = len(defect_boxes) - len(bound_defect_indexes)
 
-                    for parent in parent_boxes:
-                        px1, py1, px2, py2 = parent["box"]
-                        # Check if trigger centroid is inside parent box or within 50px proximity
-                        if (px1 <= tcx <= px2 and py1 <= tcy <= py2) or \
-                           ((px1 - 50) <= tcx <= (px2 + 50) and (py1 - 50) <= tcy <= (py2 + 50)):
-                            discard_mode = True
-                            break
-                    if discard_mode:
-                        break
+            discarded = discard_parent_indexes(
+                [trigger["box"] for trigger in discard_triggers],
+                parent_coordinates,
+                policy.discard_proximity_px,
+            )
+            for parent_index, parent in enumerate(parent_boxes):
+                decision = grade_apple(
+                    parent["box"],
+                    [defect["box"] for defect in parent["defects"]],
+                    policy,
+                    discard=parent_index in discarded,
+                )
+                parent["decision"] = decision
+                parent["grade"] = decision.grade
 
-            # --- STAGE 3: SPATIAL BINDING LAYER (IoA Override) ---
-            ioa_threshold = GRADING_RULES.get('ioa_binding_threshold', 0.10)
-
-            for defect in defect_boxes:
-                defect_box = defect["box"]
-
-                best_parent = None
-                max_ioa = 0.0
-
-                for parent in parent_boxes:
-                    parent_box = parent["box"]
-
-                    # Calculate Intersection-over-Area (IoA) ratio
-                    ioa = calculate_ioa(defect_box, parent_box)
-
-                    # Bind if IoA >= threshold from policy
-                    if ioa >= ioa_threshold:
-                        # Track parent with highest intersection density
-                        if ioa > max_ioa:
-                            max_ioa = ioa
-                            best_parent = parent
-
-                if best_parent:
-                    best_parent["defects"].append(defect)
-
-            # --- STAGE 4: DETERMINISTIC GRADING ---
-            for parent in parent_boxes:
-                parent_area = calculate_defect_area(parent["box"])
-                parent["grade"] = compute_grade(parent["defects"], parent_area, MILD_DEFECTS, MODERATE_DEFECTS, SEVERE_DEFECTS, GRADING_RULES)
-
-                # Override grade if discard mode active
-                if discard_mode:
-                    parent["grade"] = "DISCARD"
-
-            # --- STAGE 5: EDGE HARVESTING (Active Learning) ---
-            # Skip in benchmark mode — COCO detections aren't apples, so
-            # harvesting every frame would flood disk with useless data.
+            grading_results = [
+                {
+                    **asdict(parent["decision"]),
+                    "defects": parent["defects"],
+                }
+                for parent in parent_boxes
+            ]
+            review_reasons = []
+            if any(result["requires_refinement"] for result in grading_results):
+                review_reasons.append("coverage_near_grade_boundary")
+            if orphan_defect_count:
+                review_reasons.append("orphan_defect")
             if not benchmark_mode:
-                save_edge_harvest_frame(frame, all_detections, harvest_dir)
+                write_telemetry(
+                    frame,
+                    all_detections,
+                    harvest_dir,
+                    grading_results=grading_results,
+                    force_review=bool(review_reasons),
+                    review_reason=",".join(review_reasons) or None,
+                    model_id=os.path.basename(model_path),
+                    policy_version=policy.policy_version,
+                )
 
             # --- STAGE 6: OUTPUT RENDERING ENGINE ---
             fps = 1.0 / (time.time() - start_time)
@@ -434,11 +282,13 @@ def main():
                 for parent in parent_boxes:
                     x1, y1, x2, y2 = parent["box"]
                     grade = parent["grade"]
-                    display_text = format_display_text(parent["name"], parent["conf"], grade)
+                    display_text = format_display_text(
+                        parent["name"], parent["conf"], grade
+                    )
 
                     # Color coding by grade
                     if grade == "DISCARD":
-                        color = (0, 0, 255)  # Red
+                        color = (255, 0, 255)  # Magenta
                     elif grade == "G1":
                         color = (0, 255, 0)  # Green
                     elif grade == "G2":
@@ -447,36 +297,84 @@ def main():
                         color = (0, 0, 255)  # Red
 
                     cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-                    cv2.putText(frame, display_text, (x1, y1 - 10), cv2.FONT_HERSHEY_DUPLEX, 0.5, color, 1)
+                    cv2.putText(
+                        frame,
+                        display_text,
+                        (x1, y1 - 10),
+                        cv2.FONT_HERSHEY_DUPLEX,
+                        0.5,
+                        color,
+                        1,
+                    )
 
                     # Draw bounded child defects (Red layer)
                     for defect in parent["defects"]:
                         dx1, dy1, dx2, dy2 = defect["box"]
-                        defect_text = format_display_text(defect["name"], defect["conf"])
+                        defect_text = format_display_text(
+                            defect["name"], defect["conf"]
+                        )
                         cv2.rectangle(frame, (dx1, dy1), (dx2, dy2), (0, 0, 255), 2)
-                        cv2.putText(frame, defect_text, (dx1, dy1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 255), 1)
+                        cv2.putText(
+                            frame,
+                            defect_text,
+                            (dx1, dy1 - 5),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.4,
+                            (0, 0, 255),
+                            1,
+                        )
 
                 # Draw discard triggers (Magenta)
                 for trigger in discard_triggers:
                     tx1, ty1, tx2, ty2 = trigger["box"]
                     trigger_text = format_display_text(trigger["name"], trigger["conf"])
                     cv2.rectangle(frame, (tx1, ty1), (tx2, ty2), (255, 0, 255), 2)
-                    cv2.putText(frame, trigger_text, (tx1, ty1 - 10), cv2.FONT_HERSHEY_DUPLEX, 0.5, (255, 0, 255), 1)
+                    cv2.putText(
+                        frame,
+                        trigger_text,
+                        (tx1, ty1 - 10),
+                        cv2.FONT_HERSHEY_DUPLEX,
+                        0.5,
+                        (255, 0, 255),
+                        1,
+                    )
 
-                cv2.putText(frame, f"M4 Edge Engine: {fps:.1f} FPS", (20, 40), cv2.FONT_HERSHEY_DUPLEX, 0.7, (255, 0, 0), 2)
+                cv2.putText(
+                    frame,
+                    f"M4 Edge Engine: {fps:.1f} FPS",
+                    (20, 40),
+                    cv2.FONT_HERSHEY_DUPLEX,
+                    0.7,
+                    (255, 0, 0),
+                    2,
+                )
                 cv2.imshow("M4 Edge Sorting Pipeline Engine", frame)
 
                 # Keyboard input handling
                 key = cv2.waitKey(1) & 0xFF
-                if key == ord('q'):
+                if key == ord("q"):
                     break
-                elif key == ord('g'):
-                    # Operator discrepancy override - trigger edge harvest event
-                    save_edge_harvest_frame(frame, all_detections, harvest_dir, operator_override=True)
-            else:
-                # Headless mode: print FPS every 30 frames
-                if int(fps) % 10 == 0:
-                    print(f"\r[FPS] {fps:.1f}", end="", flush=True)
+                elif key == ord("g"):
+                    persist_override(
+                        frame,
+                        all_detections,
+                        grading_results,
+                        policy_path=args.policy,
+                        facility_id=policy.facility_id,
+                    )
+                    write_telemetry(
+                        frame,
+                        all_detections,
+                        harvest_dir,
+                        operator_override=True,
+                        grading_results=grading_results,
+                        force_review=True,
+                        review_reason="operator_override",
+                        model_id=os.path.basename(model_path),
+                        policy_version=policy.policy_version,
+                    )
+            elif frame_count % 30 == 0:
+                print(f"\r[FPS] {fps:.1f}", end="", flush=True)
     except KeyboardInterrupt:
         print("\n[SYSTEM]: Interrupted by user.")
     except Exception as e:

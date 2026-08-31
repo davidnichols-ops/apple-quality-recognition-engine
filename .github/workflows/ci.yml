@@ -18,8 +18,11 @@ jobs:
         with:
           python-version: "3.13"
 
-      - name: Install lint tools
-        run: pip install pyflakes ruff
+      - name: Install test and lint tools
+        run: pip install pyflakes ruff pytest==9.1.1 pyyaml==6.0.3
+
+      - name: Unit tests
+        run: pytest -q
 
       - name: Compile check
         run: python -m compileall -q .
