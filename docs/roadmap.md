@@ -46,13 +46,14 @@ Targets may be revised only with a documented customer or facility requirement.
 
 ### Acquisition hypothesis
 
-Capture approximately 200 profiles: about 40 reference-grade profiles each for G1, G2, G3, CIDER, and DISCARD. Five views produce roughly 1,000 seed images.
+Capture approximately 200 profiles: about 40 reference-grade profiles each for G1, G2, G3, CIDER, and DISCARD. Five views produce roughly 1,000 seed images. Add 5–10% pure black background frames as YOLO negative samples (see `docs/annotation_sop.md` → Background samples) so the detector does not hallucinate defects on the matte backdrop.
 
 ### Required evidence
 
 - reference grade source, grader, facility policy, lot, cultivar, and capture batch recorded;
 - 100% seed annotation review under `docs/annotation_sop.md`;
 - every visible defect boxed regardless of reference grade;
+- background negative samples included in the train split (5–10% of total);
 - profile split audit shows zero leakage;
 - class and grade distribution report;
 - duplicate and missing-view report.

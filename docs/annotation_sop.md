@@ -95,6 +95,24 @@ Before completing a job, verify:
 
 A practical first seed is 200 profiles: approximately 40 per reference grade, yielding 1,000 views. This is a planning target, not proof of sufficiency.
 
+### Background (negative) samples
+
+Capture **5–10% of the training set as pure black background frames** — the matte backdrop with no apple present, no gloves, no turntable label. These are YOLO negative samples: empty `.txt` label files (zero annotations) paired with the image.
+
+Why this matters:
+
+- the detector learns that the matte black backdrop is not `defect_surface` or `defect_critical`;
+- without negatives, the model can hallucinate defects in empty frame regions or at the apple/backdrop boundary;
+- false defects on the backdrop inflate coverage ratios and push sound fruit into G2/G3/CIDER bins.
+
+Procedure:
+
+1. Capture 50–100 frames of the empty matte black backdrop under the same lighting and camera settings as production capture.
+2. Include slight camera angle variation and a few frames with the turntable label visible.
+3. Create empty label files: `touch apple_dataset/labels/<stem>.txt` (zero bytes = no objects).
+4. Add the image paths to the train split list alongside the profile images.
+5. Do **not** add background samples to the validation or test splits — those partitions measure apple grading performance, not backdrop rejection.
+
 ### Label-assist phase
 
 1. Train the first YOLO-Seg candidate only after seed QA.
