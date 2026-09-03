@@ -10,9 +10,9 @@ This repository is an engineering prototype, not a validated commercial grader. 
 
 The system separates four kinds of truth:
 
-1. **Reference grade** — G1, G2, G3, or DISCARD assigned before capture by a trusted grader under a named facility policy. It is profile metadata, not a YOLO class.
-2. **Visual observations** — three YOLO detection classes: `apple`, `unfit_bin_discard`, and `class_defect`.
-3. **Deterministic decision** — grade derived from bound defect count, union coverage, discard geometry, and a versioned YAML policy.
+1. **Reference grade** — G1, G2, G3, CIDER, or DISCARD assigned before capture by a trusted grader under a named facility policy. It is profile metadata, not a YOLO class.
+2. **Visual observations** — four YOLO detection classes: `apple`, `stem_calyx`, `defect_surface`, and `defect_critical`.
+3. **Deterministic decision** — grade derived from bound defect coverage ratios and the presence of any critical defect, via a versioned YAML policy.
 4. **Advisory review** — optional segmentation and Gemini 3.7 Flash review can propose refinements. Neither may silently change a grade, policy, annotation, dataset, or checkpoint.
 
 ## Production flow
@@ -21,39 +21,43 @@ The system separates four kinds of truth:
 Known-grade apple
   -> five-view capture (4 equatorial + 1 calyx)
   -> profile manifest
-  -> Roboflow annotation / reviewed label assist
+  -> local SAM 2 annotation (frozen teacher, box-prompted segmentation)
+  -> YOLO-Seg label conversion
   -> profile-level train/val/test split
-  -> YOLO26 candidate training
+  -> YOLO26-Seg candidate training
   -> held-out evaluation + M4 benchmark
   -> human checkpoint promotion
 
 Live apple
+  -> blue nitrile glove masking (HSV, <1ms CPU)
   -> YOLO26 CoreML candidate
-  -> apple + child anomaly boxes
+  -> apple + stem_calyx + defect_surface + defect_critical boxes
   -> IoA spatial binding
-  -> clipped union coverage
+  -> any defect_critical -> DISCARD
+  -> else clipped defect_surface union coverage -> R_surf
   -> deterministic per-view grade
   -> worst visible grade across complete five-view profile
-  -> G1 / G2 / G3 / DISCARD
+  -> G1 / G2 / G3 / CIDER / DISCARD
   -> review queue when confidence is volatile or coverage is near a boundary
 ```
 
 The VLM is deliberately outside the real-time authority path. Gemini 3.7 Flash is the planned offline reviewer because it accepts multiple images and structured output at practical batch cost. Its output is stored as a pending proposal through `vlm_review_schema.py`; a human must approve or reject it.
 
-## Three-class detector schema
+## Four-class detector schema
 
 | ID | Class | Role |
 |---:|---|---|
-| 0 | `apple` | Tight macro parent box around one visible fruit |
-| 1 | `unfit_bin_discard` | Local discard signal or unfit region; it applies only to a nearby apple |
-| 2 | `class_defect` | Tight child box around any visible anomaly region |
+| 0 | `apple` | Tight macro parent box/mask around one visible fruit |
+| 1 | `stem_calyx` | Anatomical exclusion zone (stem, calyx) — prevents false rot positives |
+| 2 | `defect_surface` | Non-decay cosmetic marks (russeting, limb rub, healed hail) |
+| 3 | `defect_critical` | Structural & fungal damage (active rot, wet lesions, open punctures) |
 
-Why one generic defect class:
+Why a critical/surface split instead of one generic defect class:
 
-- it concentrates the available examples instead of starving rare defect types;
-- it makes annotation and Roboflow label assist easier to review;
-- it lets geometry, count, and coverage carry the first production decision;
-- it defers taxonomic expansion until confusion data proves a specific split adds grade value.
+- `defect_critical` (any amount) forces `DISCARD` — open rot must never reach fresh or cider bins;
+- `defect_surface` coverage drives the G1/G2/G3/CIDER ladder — russeting and hail are cosmetic, not safety;
+- `stem_calyx` isolation prevents the dark calyx/stem recess from being misclassified as rot;
+- the split makes the deterministic decision tree auditable: a DISCARD is always traceable to a critical defect, not an unexplainable coverage number.
 
 Annotators still box every visible defect on G1 fruit. Omitting tolerated G1 defects would teach the detector that grade controls whether a defect exists, which is label leakage.
 
@@ -61,26 +65,37 @@ Annotators still box every visible defect on G1 fruit. Omitting tolerated G1 def
 
 `grading_engine.py` is the pure decision core. It:
 
-- binds each `class_defect` to the apple with the highest child Intersection-over-Area (IoA) above the configured threshold;
-- clips defect boxes to the parent apple;
-- computes the geometric union of overlapping child boxes so overlap is not counted twice;
-- applies count and coverage thresholds from `grading_policy.yaml`;
-- applies `unfit_bin_discard` only to the nearby apple rather than globally;
+- binds each `defect_surface` and `defect_critical` to the apple with the highest child Intersection-over-Area (IoA) above the configured threshold;
+- forces `DISCARD` when any `defect_critical` is bound to an apple;
+- otherwise clips `defect_surface` boxes to the parent apple and computes the geometric union so overlap is not counted twice;
+- computes `R_surf = union_coverage / apple_area * 100` and maps it to G1/G2/G3/CIDER via thresholds from `grading_policy.yaml`;
+- excludes `stem_calyx` detections from defect counting (anatomical, not damage);
 - marks box coverage near a decision threshold as requiring refinement;
 - supports an optional externally measured segmentation coverage value;
 - aggregates a complete five-view profile using the worst visible grade.
 
-The committed thresholds are candidate calibration values, not claims that 5% and 15% match a customer standard. They remain candidates until held-out known-grade profiles validate them.
+The decision tree:
+
+```text
+any defect_critical bound to apple  ->  DISCARD
+else R_surf = Area(defect_surface union) / Area(apple) * 100
+    R_surf < 2%   ->  G1   (U.S. Extra Fancy)
+    R_surf < 10%  ->  G2   (U.S. Fancy / No. 1)
+    R_surf < 25%  ->  G3   (U.S. Utility / Processing)
+    R_surf >= 25% ->  CIDER (sound, fails fresh market — still pressable)
+```
+
+The committed thresholds are candidate calibration values, not claims that 2%, 10%, and 25% match any USDA standard. They remain candidates until held-out known-grade profiles validate them.
 
 ## Detection first, segmentation by evidence
 
-Bounding boxes are the v1 annotation format. They are fast to label and sufficient to test whether generic anomaly geometry predicts grade.
+Bounding boxes are the v1 annotation format. They are fast to label and sufficient to test whether defect geometry predicts grade. The local SAM 2 -> YOLO-Seg pipeline (`scripts/sam2_annotate.py`) converts box prompts into high-precision polygon masks using a frozen SAM 2 teacher — no SFT on SAM 2 itself.
 
-Boxes overestimate irregular defect area. The policy therefore exposes a refinement margin around G1/G2 and G2/G3 boundaries. Selective segmentation is a gated experiment, not a current production dependency:
+Boxes overestimate irregular defect area. The policy therefore exposes a refinement margin around G1/G2, G2/G3, and G3/CIDER boundaries. Selective segmentation is a gated experiment, not a current production dependency:
 
 1. establish the box-only confusion matrix on untouched profiles;
 2. identify whether boundary errors are materially caused by box-area bias;
-3. annotate masks only for those boundary cases;
+3. annotate masks only for those boundary cases via the SAM 2 pipeline;
 4. promote a segmentation refiner only if it improves profile grade accuracy enough to justify its latency and labeling cost.
 
 ## Dataset protocol
@@ -166,14 +181,16 @@ python local_inference.py \
 |---|---|
 | `capture_dataset.py` | Five-view known-grade capture and JSONL profile manifest |
 | `grading_engine.py` | Pure geometry, grade decisions, refinement flag, profile aggregation |
-| `local_inference.py` | Camera, YOLO inference, binding, rendering, harvest, operator override |
+| `local_inference.py` | Camera, glove masking, YOLO inference, binding, rendering, harvest, override |
+| `glove_masking.py` | Blue nitrile glove HSV masking and defect suppression |
 | `edge_harvest_schema.py` | Typed review telemetry contract |
 | `vlm_review_schema.py` | Advisory-only VLM proposal contract |
 | `grading_policy.yaml` | Versioned facility calibration candidates |
-| `data.yaml` | Three-class YOLO dataset schema and profile split files |
+| `data.yaml` | Four-class YOLO dataset schema and profile split files |
 | `scripts/split_profiles.py` | Deterministic profile-level split generation |
 | `scripts/reingest_harvest.py` | Human-approved review re-ingestion only |
-| `docs/annotation_sop.md` | Roboflow labeling and review standard |
+| `scripts/sam2_annotate.py` | Frozen SAM 2 -> YOLO-Seg annotation pipeline |
+| `docs/annotation_sop.md` | Labeling and review standard |
 | `docs/production_architecture.md` | Authority boundaries and production-line design |
 | `docs/roadmap.md` | Staged evidence gates, done criteria, and pivot criteria |
 | `tests/` | Hardware-independent regression tests |
@@ -183,17 +200,19 @@ python local_inference.py \
 Implemented and testable now:
 
 - five-view capture metadata contract;
-- three-class schema;
+- four-class vision taxonomy (apple / stem_calyx / defect_surface / defect_critical);
+- five-grade output topology (G1 / G2 / G3 / CIDER / DISCARD) with USDA mapping;
 - profile-isolated deterministic splitter;
-- box union coverage and per-parent discard geometry;
-- deterministic grade/refinement/profile aggregation core;
+- defect-critical-forces-DISCARD and surface-coverage-ratio grade engine;
+- blue nitrile glove masking and defect suppression;
+- local SAM 2 -> YOLO-Seg annotation pipeline scaffold;
 - typed human review and VLM advisory records;
 - operator override and typed edge-harvest wiring.
 
 Not yet validated or implemented as production capability:
 
 - a trained apple checkpoint;
-- Roboflow dataset/version evidence;
+- SAM 2 annotation pipeline execution on real captures;
 - profile-level accuracy targets on an untouched holdout;
 - selective segmentation model;
 - Gemini API reviewer execution;

@@ -24,7 +24,7 @@ def install_fake_cv2(monkeypatch) -> None:
 def detections() -> list[dict]:
     return [
         {"id": 0, "name": "apple", "box": [0, 0, 100, 100], "conf": 0.95},
-        {"id": 2, "name": "class_defect", "box": [10, 10, 20, 20], "conf": 0.55},
+        {"id": 2, "name": "defect_surface", "box": [10, 10, 20, 20], "conf": 0.55},
     ]
 
 

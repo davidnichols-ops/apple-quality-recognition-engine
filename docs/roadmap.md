@@ -4,7 +4,7 @@ This roadmap replaces the idea of live recursive self-improvement with a governe
 
 ## North-star outcome
 
-Demonstrate that a five-view, three-class detector plus deterministic policy can reproduce trusted facility grades on previously unseen apple profiles at the required line throughput, with traceable decisions and a safe human review loop.
+Demonstrate that a five-view, four-class detector plus deterministic policy can reproduce trusted facility grades on previously unseen apple profiles at the required line throughput, with traceable decisions and a safe human review loop.
 
 ## Global release targets
 
@@ -13,7 +13,7 @@ These are target gates, not achieved results:
 - no physical profile crosses train, validation, and test partitions;
 - per-grade profile confusion matrix is reported, not only aggregate accuracy;
 - DISCARD recall target is at least 99% with false-discard rate below 1%;
-- exact G1/G2/G3 profile agreement target is at least 95% on the untouched test set;
+- exact G1/G2/G3/CIDER profile agreement target is at least 95% on the untouched test set;
 - no single grade may hide behind class imbalance; each grade target is reported separately;
 - sustained M4 inference meets the measured physical line cycle with thermal and camera stability evidence;
 - every production model and policy has a reversible versioned promotion record;
@@ -25,8 +25,8 @@ Targets may be revised only with a documented customer or facility requirement.
 
 ### Deliverables
 
-- three-class `data.yaml`;
-- versioned count/coverage policy;
+- four-class `data.yaml`;
+- versioned surface-ratio coverage policy;
 - five-view known-grade capture manifest;
 - profile-level deterministic splitting;
 - pure geometry and grading tests;
@@ -46,7 +46,7 @@ Targets may be revised only with a documented customer or facility requirement.
 
 ### Acquisition hypothesis
 
-Capture approximately 200 profiles: about 50 reference-grade profiles each for G1, G2, G3, and DISCARD. Five views produce roughly 1,000 seed images.
+Capture approximately 200 profiles: about 40 reference-grade profiles each for G1, G2, G3, CIDER, and DISCARD. Five views produce roughly 1,000 seed images.
 
 ### Required evidence
 
@@ -65,7 +65,7 @@ The seed is coherent enough to train a baseline and every questionable reference
 
 - reference grades cannot be traced to a consistent facility policy;
 - annotators use grade to decide whether to label defects;
-- DISCARD labels are assigned without observable visual triggers;
+- DISCARD labels are assigned without observable `defect_critical` triggers;
 - profiles are missing IDs or views.
 
 ## Stage 2 — baseline detector and deterministic calibration
@@ -74,7 +74,7 @@ Train YOLO26 candidates on the approved seed. Use YOLO26x as an accuracy ceiling
 
 ### Required evidence
 
-- per-class precision, recall, and mAP for `apple`, `class_defect`, and `unfit_bin_discard`;
+- per-class precision, recall, and mAP for `apple`, `stem_calyx`, `defect_surface`, and `defect_critical`;
 - per-view and per-profile grade confusion matrices;
 - calibration performed on validation profiles only;
 - untouched test profiles remain sealed;
@@ -87,14 +87,14 @@ A baseline checkpoint and policy can be reproduced from an immutable dataset ver
 
 ### Pivot criteria
 
-- If generic `class_defect` recall is weak, improve data and annotation before adding taxonomy.
-- If grade errors cluster at coverage boundaries, run the segmentation pilot.
+- If generic `defect_surface` recall is weak, improve data and annotation before adding sub-taxonomy.
+- If grade errors cluster at coverage boundaries, run the SAM 2 segmentation pilot.
 - If grade errors depend on defect type despite reliable localization, test one evidence-backed class split rather than restoring eleven classes.
 - If YOLO26x misses throughput, benchmark smaller variants before changing hardware.
 
 ## Stage 3 — label assist and scale toward 3,000 profiles
 
-Roboflow label assist may propose annotations. Humans accept, correct, or reject every proposal. Each approved batch creates a new immutable dataset version.
+The trained YOLO-Seg candidate may propose annotations on new profiles, which are then refined through the frozen SAM 2 pipeline. Humans accept, correct, or reject every proposal. Each approved batch creates a new immutable dataset version.
 
 ### Sampling priority
 
@@ -128,7 +128,7 @@ Run only if Stage 2 or 3 shows box-area bias is a material cause of boundary mis
 ### Experiment
 
 - sample human-reviewed boundary profiles;
-- annotate pixel masks for visible anomalies;
+- annotate pixel masks for visible anomalies via the SAM 2 pipeline;
 - run a small crop-level segmentation candidate;
 - feed refined coverage into the unchanged deterministic grade function;
 - compare against box-only decisions on untouched profiles;

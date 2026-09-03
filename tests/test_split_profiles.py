@@ -20,7 +20,7 @@ def records() -> list[dict]:
             "image_path": f"images/profile-{profile}-view-{view}.jpg",
             "view_index": view,
         }
-        for profile, grade in enumerate(("G1", "G2", "G3", "DISCARD"))
+        for profile, grade in enumerate(("G1", "G2", "G3", "CIDER", "DISCARD"))
         for view in range(5)
     ]
 
@@ -32,7 +32,7 @@ def test_stable_split_is_deterministic() -> None:
 def test_assignment_keeps_all_views_of_profile_together() -> None:
     assignments = assign_records(records())
     assert_no_profile_leakage(assignments)
-    for profile in range(4):
+    for profile in range(5):
         containing = [
             split
             for split, split_records in assignments.items()
@@ -78,5 +78,5 @@ def test_write_splits_emits_lists_and_summary(tmp_path) -> None:
     }
     summary = json.loads((tmp_path / "split_summary.json").read_text())
     assert listed_paths == {record["image_path"] for record in records()}
-    assert sum(split["images"] for split in summary.values()) == 20
-    assert sum(split["profiles"] for split in summary.values()) == 4
+    assert sum(split["images"] for split in summary.values()) == 25
+    assert sum(split["profiles"] for split in summary.values()) == 5

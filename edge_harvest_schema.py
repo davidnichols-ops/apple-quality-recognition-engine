@@ -40,7 +40,8 @@ class BoundingBox:
 
     Attributes:
         class_id: Integer class index from the model schema.
-        class_name: Flat class name string (apple, unfit_bin_discard, or class_defect).
+        class_name: Flat class name string (apple, stem_calyx, defect_surface,
+            or defect_critical).
         box: Pixel coordinates as [x1, y1, x2, y2].
         confidence: Detection confidence in the range [0.0, 1.0].
     """

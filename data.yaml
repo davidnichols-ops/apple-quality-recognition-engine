@@ -1,14 +1,22 @@
-# Three-class feature detector. Reference grades live in capture metadata,
-# not in YOLO labels. Split lists must be generated at profile level so all
-# five views of one apple remain in the same partition.
+# Four-class feature detector. The neural network observes physical features
+# only; commercial grades are computed by the deterministic policy engine.
+# Reference grades live in capture metadata, not in YOLO labels. Split lists
+# must be generated at profile level so all five views of one apple remain in
+# the same partition.
+#
+#   0 apple            — parent mask (caliper size & area denominator)
+#   1 stem_calyx       — anatomical exclusion zones (prevents false rot positives)
+#   2 defect_surface   — non-decay cosmetic marks (russeting, limb rub, hail)
+#   3 defect_critical  — structural & fungal damage (active rot, punctures)
 
 path: ./apple_dataset
 train: splits/train.txt
 val: splits/val.txt
 test: splits/test.txt
 
-nc: 3
+nc: 4
 names:
   0: apple
-  1: unfit_bin_discard
-  2: class_defect
+  1: stem_calyx
+  2: defect_surface
+  3: defect_critical

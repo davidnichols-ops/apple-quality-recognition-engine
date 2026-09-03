@@ -3,7 +3,7 @@
 Production Local Inference Script
 Apple CoreML Deployment on M4 Neural Engine
 Target: MacBook Air M4 (macOS 26 Tahoe / Darwin 25.5.0)
-Feature Detector Pipeline: Three-Class Schema Architecture
+Feature Detector Pipeline: Four-Class Vision Taxonomy + Five-Grade Policy
 Candidate model: YOLO26 CoreML export at 640x640; deployment size selected by benchmark
 """
 
@@ -20,11 +20,11 @@ from edge_harvest_schema import write_telemetry
 from grading_engine import (
     EXPECTED_CLASS_NAMES,
     bind_defects_to_parents,
-    discard_parent_indexes,
     grade_apple,
     load_grading_policy,
     model_names_match_expected_schema,
 )
+from glove_masking import mask_blue_gloves, suppress_glove_defects
 from override_persistence import persist_override
 
 
@@ -91,9 +91,13 @@ def format_display_text(class_name, confidence, grade=None):
     if class_name == "apple":
         grade_str = f" ({grade})" if grade else ""
         return f"APPLE{grade_str} [{confidence:.2f}]"
-    if class_name == "unfit_bin_discard":
-        return f"DISCARD [{confidence:.2f}]"
-    return f"DEFECT [{confidence:.2f}]"
+    if class_name == "stem_calyx":
+        return f"STEM/CALYX [{confidence:.2f}]"
+    if class_name == "defect_surface":
+        return f"SURFACE [{confidence:.2f}]"
+    if class_name == "defect_critical":
+        return f"CRITICAL [{confidence:.2f}]"
+    return f"{class_name.upper()} [{confidence:.2f}]"
 
 
 def main():
@@ -171,7 +175,7 @@ def main():
             "[WARNING]: BENCHMARK MODE — grades are disabled and detections are not harvested."
         )
     else:
-        print("[SYSTEM]: Three-class candidate schema active. Press 'q' to exit.")
+        print("[SYSTEM]: Four-class candidate schema active. Press 'q' to exit.")
 
     # Edge harvest directory
     harvest_dir = "dataset/edge_harvest"
@@ -189,11 +193,18 @@ def main():
                 print("[ERROR]: No frame available. Exiting inference loop.")
                 break
 
+            # Blue nitrile glove masking — runs on CPU in <1ms before inference.
+            # Suppresses finger edge artifacts that share spectrum with apple
+            # skin tones. Defect candidates overlapping the glove mask are
+            # dropped after detection.
+            glove_mask, _ = mask_blue_gloves(frame)
+
             results = model(frame, conf=0.35, imgsz=640, verbose=False)
 
             parent_boxes = []
-            discard_triggers = []
-            defect_boxes = []
+            stem_calyx_boxes = []
+            surface_defect_boxes = []
+            critical_defect_boxes = []
             all_detections = []
 
             for box in results[0].boxes:
@@ -211,41 +222,74 @@ def main():
                 if benchmark_mode:
                     continue
                 if class_name == "apple":
-                    parent_boxes.append({**detection, "defects": []})
-                elif class_name == "unfit_bin_discard":
-                    discard_triggers.append(detection)
-                elif class_name == "class_defect":
-                    defect_boxes.append(detection)
+                    parent_boxes.append({**detection, "defects": [], "criticals": []})
+                elif class_name == "stem_calyx":
+                    stem_calyx_boxes.append(detection)
+                elif class_name == "defect_surface":
+                    surface_defect_boxes.append(detection)
+                elif class_name == "defect_critical":
+                    critical_defect_boxes.append(detection)
+
+            # Suppress defect candidates that overlap the glove mask.
+            if not benchmark_mode and glove_mask is not None:
+                surface_defect_boxes = [
+                    d
+                    for d in surface_defect_boxes
+                    if d["box"]
+                    in suppress_glove_defects(
+                        [d["box"] for d in surface_defect_boxes], glove_mask
+                    )
+                ]
+                critical_defect_boxes = [
+                    d
+                    for d in critical_defect_boxes
+                    if d["box"]
+                    in suppress_glove_defects(
+                        [d["box"] for d in critical_defect_boxes], glove_mask
+                    )
+                ]
 
             parent_coordinates = [parent["box"] for parent in parent_boxes]
-            defect_coordinates = [defect["box"] for defect in defect_boxes]
-            bindings = bind_defects_to_parents(
-                defect_coordinates,
+            surface_coordinates = [d["box"] for d in surface_defect_boxes]
+            critical_coordinates = [d["box"] for d in critical_defect_boxes]
+
+            surface_bindings = bind_defects_to_parents(
+                surface_coordinates,
                 parent_coordinates,
                 policy.ioa_binding_threshold,
             )
-            for parent_index, defect_indexes in enumerate(bindings):
-                parent_boxes[parent_index]["defects"] = [
-                    defect_boxes[index] for index in defect_indexes
-                ]
-            bound_defect_indexes = {
-                defect_index
-                for defect_indexes in bindings
-                for defect_index in defect_indexes
-            }
-            orphan_defect_count = len(defect_boxes) - len(bound_defect_indexes)
-
-            discarded = discard_parent_indexes(
-                [trigger["box"] for trigger in discard_triggers],
+            critical_bindings = bind_defects_to_parents(
+                critical_coordinates,
                 parent_coordinates,
-                policy.discard_proximity_px,
+                policy.ioa_binding_threshold,
             )
+            for parent_index, defect_indexes in enumerate(surface_bindings):
+                parent_boxes[parent_index]["defects"] = [
+                    surface_defect_boxes[index] for index in defect_indexes
+                ]
+            for parent_index, defect_indexes in enumerate(critical_bindings):
+                parent_boxes[parent_index]["criticals"] = [
+                    critical_defect_boxes[index] for index in defect_indexes
+                ]
+            bound_surface = {
+                idx for indexes in surface_bindings for idx in indexes
+            }
+            bound_critical = {
+                idx for indexes in critical_bindings for idx in indexes
+            }
+            orphan_defect_count = (
+                len(surface_defect_boxes)
+                - len(bound_surface)
+                + len(critical_defect_boxes)
+                - len(bound_critical)
+            )
+
             for parent_index, parent in enumerate(parent_boxes):
                 decision = grade_apple(
                     parent["box"],
-                    [defect["box"] for defect in parent["defects"]],
+                    [d["box"] for d in parent["defects"]],
+                    [d["box"] for d in parent["criticals"]],
                     policy,
-                    discard=parent_index in discarded,
                 )
                 parent["decision"] = decision
                 parent["grade"] = decision.grade
@@ -254,6 +298,7 @@ def main():
                 {
                     **asdict(parent["decision"]),
                     "defects": parent["defects"],
+                    "criticals": parent["criticals"],
                 }
                 for parent in parent_boxes
             ]
@@ -289,6 +334,8 @@ def main():
                     # Color coding by grade
                     if grade == "DISCARD":
                         color = (255, 0, 255)  # Magenta
+                    elif grade == "CIDER":
+                        color = (255, 0, 0)  # Blue
                     elif grade == "G1":
                         color = (0, 255, 0)  # Green
                     elif grade == "G2":
@@ -307,7 +354,7 @@ def main():
                         1,
                     )
 
-                    # Draw bounded child defects (Red layer)
+                    # Draw bounded surface defects (Red)
                     for defect in parent["defects"]:
                         dx1, dy1, dx2, dy2 = defect["box"]
                         defect_text = format_display_text(
@@ -324,18 +371,37 @@ def main():
                             1,
                         )
 
-                # Draw discard triggers (Magenta)
-                for trigger in discard_triggers:
-                    tx1, ty1, tx2, ty2 = trigger["box"]
-                    trigger_text = format_display_text(trigger["name"], trigger["conf"])
-                    cv2.rectangle(frame, (tx1, ty1), (tx2, ty2), (255, 0, 255), 2)
+                    # Draw bounded critical defects (Magenta)
+                    for critical in parent["criticals"]:
+                        cx1, cy1, cx2, cy2 = critical["box"]
+                        critical_text = format_display_text(
+                            critical["name"], critical["conf"]
+                        )
+                        cv2.rectangle(
+                            frame, (cx1, cy1), (cx2, cy2), (255, 0, 255), 2
+                        )
+                        cv2.putText(
+                            frame,
+                            critical_text,
+                            (cx1, cy1 - 5),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.4,
+                            (255, 0, 255),
+                            1,
+                        )
+
+                # Draw stem/calyx exclusion zones (Yellow)
+                for sc in stem_calyx_boxes:
+                    sx1, sy1, sx2, sy2 = sc["box"]
+                    sc_text = format_display_text(sc["name"], sc["conf"])
+                    cv2.rectangle(frame, (sx1, sy1), (sx2, sy2), (0, 255, 255), 1)
                     cv2.putText(
                         frame,
-                        trigger_text,
-                        (tx1, ty1 - 10),
-                        cv2.FONT_HERSHEY_DUPLEX,
-                        0.5,
-                        (255, 0, 255),
+                        sc_text,
+                        (sx1, sy1 - 5),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.35,
+                        (0, 255, 255),
                         1,
                     )
 

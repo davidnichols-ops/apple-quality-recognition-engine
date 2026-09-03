@@ -20,12 +20,14 @@ No component trains or swaps a model while the line is operating.
 ```text
 Arducam OV9782
   -> 1280x720 frame
+  -> blue nitrile glove masking (HSV threshold, <1ms CPU)
   -> YOLO26 CoreML candidate at configured inference size
   -> class-name schema guard
-  -> apple / class_defect / unfit_bin_discard boxes
-  -> child IoA binding
-  -> per-parent discard proximity
-  -> clipped defect-box union coverage
+  -> apple / stem_calyx / defect_surface / defect_critical boxes
+  -> glove-overlap defect suppression
+  -> child IoA binding (surface + critical separately)
+  -> any defect_critical bound -> DISCARD
+  -> else clipped defect_surface union coverage -> R_surf
   -> deterministic GradeDecision
   -> overlay + telemetry + actuator integration boundary
 ```
@@ -36,19 +38,20 @@ The live path requires exactly:
 
 ```text
 0 apple
-1 unfit_bin_discard
-2 class_defect
+1 stem_calyx
+2 defect_surface
+3 defect_critical
 ```
 
 A COCO model or reordered schema enters benchmark mode. Benchmark frames can measure camera and inference speed, but their detections must not enter the review dataset and their grades must not be presented as valid.
 
 ### Parent-child geometry
 
-A `class_defect` is assigned to the apple with the greatest child IoA when the score meets the policy threshold. Orphan child boxes are not graded and should enter review telemetry.
+A `defect_surface` or `defect_critical` is assigned to the apple with the greatest child IoA when the score meets the policy threshold. Orphan child boxes are not graded and should enter review telemetry. `stem_calyx` detections are anatomical exclusion zones and are never bound as defects.
 
-Coverage is the union of child boxes clipped to the apple parent. This prevents two overlapping predictions from counting the same pixels twice. It does not solve irregular-shape box bias; that is the selective-segmentation decision below.
+Coverage is the union of `defect_surface` boxes clipped to the apple parent. This prevents two overlapping predictions from counting the same pixels twice. It does not solve irregular-shape box bias; that is the selective-segmentation decision below.
 
-`unfit_bin_discard` is evaluated per apple. A trigger near apple A must not discard apple B. If a production line can emit a discard trigger with no parent apple, the actuator contract must define explicit handling before deployment; the current grade object is parent-scoped.
+`defect_critical` is evaluated per apple. Any critical defect bound to an apple forces `DISCARD` regardless of surface coverage. This replaces the old per-parent discard proximity logic — the discard signal is now a direct critical-defect observation, not a proximity heuristic.
 
 ### Five-view aggregation
 
@@ -65,18 +68,20 @@ The current camera capture script implements the acquisition profile. The live l
 
 The policy inputs are:
 
-- count of valid bound child boxes;
-- union coverage percentage;
-- local discard trigger;
+- count of valid bound `defect_surface` boxes;
+- count of valid bound `defect_critical` boxes;
+- union coverage percentage of `defect_surface` boxes clipped to the apple;
 - optional refined segmentation coverage;
 - policy version and facility identity.
 
 The current candidate rules are intentionally simple:
 
-- G1 below the G2 count and coverage boundaries;
-- G2 at or above the G2 count or coverage boundary;
-- G3 above the configured G2 defect-count ceiling or at/above the G3 coverage boundary;
-- DISCARD when the local override trigger applies.
+- `DISCARD` when any `defect_critical` is bound to the apple;
+- otherwise `R_surf = union_coverage / apple_area * 100`:
+  - `G1` below the G2 surface-ratio boundary (candidate: 2%);
+  - `G2` at or above the G2 boundary (candidate: 10%);
+  - `G3` at or above the G3 boundary (candidate: 25%);
+  - `CIDER` at or above the CIDER boundary — sound fruit that fails fresh market but is free of critical decay.
 
 These are hypotheses to calibrate against known-grade profiles. They are not universal apple standards.
 
@@ -84,12 +89,12 @@ These are hypotheses to calibrate against known-grade profiles. They are not uni
 
 Segmentation is measurement refinement, not a new grading authority.
 
-The box-only decision marks coverage within `refinement_margin_pct` of either threshold. Those cases may be sent to a future small segmentation refiner on an apple or defect crop. If a valid refined coverage value is returned, the same deterministic policy runs again using that measurement.
+The box-only decision marks coverage within `refinement_margin_pct` of any threshold (G1/G2, G2/G3, G3/CIDER). Those cases may be sent to the local SAM 2 segmentation pipeline (`scripts/sam2_annotate.py`) on an apple or defect crop. If a valid refined coverage value is returned, the same deterministic policy runs again using that measurement.
 
 Do not add full-dataset mask annotation or a production mask model until all conditions hold:
 
 - box-only holdout evidence identifies boundary coverage as a material error source;
-- a mask pilot is independently reviewed;
+- a SAM 2 mask pilot is independently reviewed;
 - the refiner improves profile-grade performance on untouched profiles;
 - edge latency remains inside the line budget;
 - fallback behavior is defined for timeout or invalid masks.
@@ -129,7 +134,7 @@ The VLM may not:
 
 ## Dataset and leakage controls
 
-The unit of independence is a physical apple profile, not an image. All five views stay in one partition. The deterministic splitter hashes `profile_id`; Roboflow exports must be audited against the same rule.
+The unit of independence is a physical apple profile, not an image. All five views stay in one partition. The deterministic splitter hashes `profile_id`; SAM 2 pipeline output must be audited against the same rule.
 
 Reference grade is evaluation metadata. It does not replace image annotation and must not determine whether annotators draw a defect. The test partition stays untouched by threshold calibration, prompt tuning, class redesign, and model selection.
 

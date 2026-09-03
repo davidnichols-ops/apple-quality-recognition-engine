@@ -1,15 +1,21 @@
 # Candidate facility policy. Thresholds are calibration parameters, not claims
-# of compliance. Promote changes only after held-out profile evaluation and
-# human approval.
+# of compliance with any USDA standard. Promote changes only after held-out
+# profile evaluation and human approval.
+#
+# Decision tree (per view):
+#   any defect_critical bound to apple  ->  DISCARD
+#   else R_surf = Area(defect_surface union) / Area(apple) * 100
+#       R_surf < surface_ratio_g1_pct   ->  G1   (U.S. Extra Fancy)
+#       R_surf < surface_ratio_g2_pct   ->  G2   (U.S. Fancy / No. 1)
+#       R_surf < surface_ratio_g3_pct   ->  G3   (U.S. Utility / Processing)
+#       R_surf >= surface_ratio_g3_pct  ->  CIDER (sound, fails fresh market)
 facility_id: "DSM_COLD_STORAGE_01"
-policy_version: "2.0.0-candidate"
+policy_version: "3.0.0-candidate"
 
 rules:
-  max_defects_for_g1: 2
-  max_defects_for_g2: 5
-  area_threshold_g2_pct: 5.0
-  area_threshold_g3_pct: 15.0
+  surface_ratio_g1_pct: 2.0
+  surface_ratio_g2_pct: 10.0
+  surface_ratio_g3_pct: 25.0
   ioa_binding_threshold: 0.10
-  discard_proximity_px: 50
   refinement_margin_pct: 2.0
   expected_profile_views: 5

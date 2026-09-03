@@ -113,7 +113,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 
 
 def resolve_capture_inputs(args: argparse.Namespace) -> tuple[str, int]:
-    grade = normalize_grade(args.grade or input("Reference grade (G1/G2/G3/DISCARD): "))
+    grade = normalize_grade(args.grade or input("Reference grade (G1/G2/G3/CIDER/DISCARD): "))
     if args.count is None:
         try:
             count = int(input("Number of apples to capture: "))
