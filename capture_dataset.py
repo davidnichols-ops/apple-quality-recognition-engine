@@ -14,6 +14,7 @@ from typing import Sequence
 
 from camera_utils import detect_arducam_index
 from grading_engine import VALID_GRADES
+from wb_lock import apply_wb_gains, load_calibration
 
 WIDTH = 1280
 HEIGHT = 720
@@ -170,8 +171,11 @@ def _wait_for_space(cv2, cap, lines: Sequence[str]) -> object:
             raise KeyboardInterrupt
 
 
-def _save_frame(cv2, path: Path, frame) -> None:
+def _save_frame(cv2, path: Path, frame, wb_gains=None) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    # Apply software white balance correction before saving
+    if wb_gains is not None:
+        frame = apply_wb_gains(frame, wb_gains)
     if not cv2.imwrite(str(path), frame):
         raise RuntimeError(f"failed to write image: {path}")
 
@@ -187,6 +191,7 @@ def _record_frame(
     view_index: int,
     view_type: str,
     camera_index: int,
+    wb_gains: dict | None = None,
 ) -> str:
     captured_at = datetime.now(timezone.utc)
     filename = build_filename(
@@ -197,7 +202,7 @@ def _record_frame(
         view_type,
     )
     image_path = output_dir / filename
-    _save_frame(cv2, image_path, frame)
+    _save_frame(cv2, image_path, frame, wb_gains=wb_gains)
     append_manifest(
         manifest_path,
         CaptureRecord(
@@ -223,7 +228,7 @@ def _record_frame(
 
 
 def _init_camera(args: argparse.Namespace):
-    """Initialize the camera with WB lock and warmup. Returns (cv2, cap, camera_index)."""
+    """Initialize the camera and load WB calibration. Returns (cv2, cap, camera_index, wb_gains)."""
     import cv2
 
     camera_index = detect_arducam_index(
@@ -236,24 +241,19 @@ def _init_camera(args: argparse.Namespace):
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, HEIGHT)
     cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
 
-    # Lock white balance to manual 5600K (daylight). The Arducam OV9782 does
-    # not expose CAP_PROP_WB_TEMPERATURE as a standard UVC control, so we
-    # disable auto WB and set the per-channel gains directly. 5600K on this
-    # sensor maps approximately to R=1.0, G=1.0, B=1.32 (slight blue boost to
-    # match daylight under diffused LED lighting).
-    cap.set(cv2.CAP_PROP_AUTO_WB, 0)  # disable auto white balance
-    cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 1)  # manual exposure mode
-    cap.set(cv2.CAP_PROP_GAIN, 0)  # master gain neutral
-    wb_set = cap.set(cv2.CAP_PROP_WB_TEMPERATURE, 5600)
-    auto_wb = cap.get(cv2.CAP_PROP_AUTO_WB)
-    wb_actual = cap.get(cv2.CAP_PROP_WB_TEMPERATURE)
-    if wb_set and wb_actual > 0:
-        print(f"[CAMERA] White balance: auto={auto_wb}, temp={wb_actual}K (UVC)")
+    # The Arducam OV9782 does not support hardware WB lock via OpenCV or
+    # AVFoundation (Locked mode not supported, Custom gains not supported).
+    # Instead we use a software WB lock: per-channel gains calibrated against
+    # a white reference card, applied to every frame before saving.
+    # Run `python wb_lock.py --calibrate` once at the start of the session.
+    wb_gains = load_calibration()
+    if wb_gains is not None:
+        print(f"[CAMERA] Software WB lock loaded: "
+              f"R={wb_gains['r_gain']:.3f} G={wb_gains['g_gain']:.3f} "
+              f"B={wb_gains['b_gain']:.3f} (target {wb_gains.get('target_temp_k', '?')}K)")
     else:
-        print(
-            f"[CAMERA] White balance: auto={auto_wb} (manual mode, "
-            "factory color matrix — WB_TEMPERATURE not exposed by this sensor)"
-        )
+        print("[CAMERA] No WB calibration found. Run: python wb_lock.py --calibrate")
+        print("[CAMERA] Captures will use camera auto WB (not recommended for training data)")
 
     # Explicitly create the preview window up front. On macOS with OpenCV 5,
     # cv2.imshow alone often fails to create a visible window; namedWindow
@@ -264,10 +264,10 @@ def _init_camera(args: argparse.Namespace):
     for _ in range(5):
         cap.read()
 
-    return cv2, cap, camera_index
+    return cv2, cap, camera_index, wb_gains
 
 
-def run_equatorial(args: argparse.Namespace, cv2, cap, camera_index: int) -> int:
+def run_equatorial(args: argparse.Namespace, cv2, cap, camera_index: int, wb_gains: dict | None = None) -> int:
     """Capture 4 equatorial turntable views per apple. No calyx shot."""
     reference_grade, count = resolve_capture_inputs(args)
     output_dir = Path(args.output_dir)
@@ -321,6 +321,7 @@ def run_equatorial(args: argparse.Namespace, cv2, cap, camera_index: int) -> int
                     view_index,
                     "equatorial",
                     camera_index,
+                    wb_gains=wb_gains,
                 )
                 next_capture_at = sequence_start + (
                     (view_index + 1) * EQUATORIAL_INTERVAL_SECONDS
@@ -335,7 +336,7 @@ def run_equatorial(args: argparse.Namespace, cv2, cap, camera_index: int) -> int
     return 0
 
 
-def run_stem(args: argparse.Namespace, cv2, cap, camera_index: int) -> int:
+def run_stem(args: argparse.Namespace, cv2, cap, camera_index: int, wb_gains: dict | None = None) -> int:
     """Capture standalone stem/calyx photos. Not tied to specific profiles."""
     reference_grade, count = resolve_capture_inputs(args)
     output_dir = Path(args.output_dir)
@@ -369,6 +370,7 @@ def run_stem(args: argparse.Namespace, cv2, cap, camera_index: int) -> int:
                 0,
                 "calyx",
                 camera_index,
+                wb_gains=wb_gains,
             )
             print(f"[COMPLETE] {stem_id}: stem/calyx photo {photo_index + 1}/{count}")
     except KeyboardInterrupt:
@@ -380,12 +382,12 @@ def run_stem(args: argparse.Namespace, cv2, cap, camera_index: int) -> int:
 
 
 def run_capture(args: argparse.Namespace) -> int:
-    cv2, cap, camera_index = _init_camera(args)
+    cv2, cap, camera_index, wb_gains = _init_camera(args)
     try:
         if args.mode == "stem":
-            return run_stem(args, cv2, cap, camera_index)
+            return run_stem(args, cv2, cap, camera_index, wb_gains=wb_gains)
         else:
-            return run_equatorial(args, cv2, cap, camera_index)
+            return run_equatorial(args, cv2, cap, camera_index, wb_gains=wb_gains)
     finally:
         cap.release()
         cv2.destroyAllWindows()
