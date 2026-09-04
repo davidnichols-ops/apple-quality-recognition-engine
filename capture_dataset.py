@@ -230,6 +230,15 @@ def run_capture(args: argparse.Namespace) -> int:
     print(f"[INFO] Batch: {args.batch_id} | Grade: {reference_grade}")
     print(f"[INFO] Target: {output_dir} | Resolution: {WIDTH}x{HEIGHT} MJPG")
 
+    # Explicitly create the preview window up front. On macOS with OpenCV 5,
+    # cv2.imshow alone often fails to create a visible window; namedWindow
+    # forces the GUI backend to initialize before the first frame is shown.
+    cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_AUTOSIZE)
+    # Warm up the camera with a few discarded reads so the first preview
+    # frame is not a stale buffer.
+    for _ in range(5):
+        cap.read()
+
     try:
         for fruit_index in range(count):
             profile_id = build_profile_id(args.batch_id, fruit_index)
