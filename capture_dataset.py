@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Capture five known-grade views per apple with profile-level metadata."""
+"""Capture equatorial views per apple, plus a separate stem/calyx pass."""
 
 from __future__ import annotations
 
@@ -88,12 +88,18 @@ def append_manifest(manifest_path: Path, record: CaptureRecord) -> None:
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Capture four equatorial views and one calyx view per known-grade apple."
+        description="Capture equatorial views per apple, or a separate stem/calyx pass."
+    )
+    parser.add_argument(
+        "--mode",
+        choices=["equatorial", "stem"],
+        default="equatorial",
+        help="equatorial: 4 turntable views per apple. stem: standalone calyx/stem photos at end of session.",
     )
     parser.add_argument(
         "--grade", choices=VALID_GRADES, help="Reference grade for this batch."
     )
-    parser.add_argument("--count", type=int, help="Number of apples to capture.")
+    parser.add_argument("--count", type=int, help="Number of apples (equatorial) or photos (stem) to capture.")
     parser.add_argument(
         "--batch-id",
         default=datetime.now().strftime("batch-%Y%m%d-%H%M%S"),
@@ -112,17 +118,23 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def resolve_capture_inputs(args: argparse.Namespace) -> tuple[str, int]:
-    grade = normalize_grade(args.grade or input("Reference grade (G1/G2/G3/CIDER/DISCARD): "))
+def resolve_capture_inputs(args: argparse.Namespace) -> tuple[str | None, int]:
+    if args.mode == "stem":
+        grade = args.grade  # optional for stem — may be None
+        if grade is not None:
+            grade = normalize_grade(grade)
+    else:
+        grade = normalize_grade(args.grade or input("Reference grade (G1/G2/G3/CIDER/DISCARD): "))
     if args.count is None:
+        label = "photos" if args.mode == "stem" else "apples"
         try:
-            count = int(input("Number of apples to capture: "))
+            count = int(input(f"Number of {label} to capture: "))
         except ValueError as exc:
-            raise ValueError("apple count must be an integer") from exc
+            raise ValueError("count must be an integer") from exc
     else:
         count = args.count
     if count < 1:
-        raise ValueError("apple count must be positive")
+        raise ValueError("count must be positive")
     return grade, count
 
 
@@ -210,12 +222,10 @@ def _record_frame(
     return filename
 
 
-def run_capture(args: argparse.Namespace) -> int:
+def _init_camera(args: argparse.Namespace):
+    """Initialize the camera with WB lock and warmup. Returns (cv2, cap, camera_index)."""
     import cv2
 
-    reference_grade, count = resolve_capture_inputs(args)
-    output_dir = Path(args.output_dir)
-    manifest_path = output_dir / "capture_manifest.jsonl"
     camera_index = detect_arducam_index(
         allow_builtin_fallback=args.allow_camera_fallback
     )
@@ -233,26 +243,17 @@ def run_capture(args: argparse.Namespace) -> int:
     # match daylight under diffused LED lighting).
     cap.set(cv2.CAP_PROP_AUTO_WB, 0)  # disable auto white balance
     cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 1)  # manual exposure mode
-    # Per-channel gain controls (UVC manual WB)
     cap.set(cv2.CAP_PROP_GAIN, 0)  # master gain neutral
-    # Some OpenCV builds expose per-channel WB via these props:
     wb_set = cap.set(cv2.CAP_PROP_WB_TEMPERATURE, 5600)
     auto_wb = cap.get(cv2.CAP_PROP_AUTO_WB)
     wb_actual = cap.get(cv2.CAP_PROP_WB_TEMPERATURE)
     if wb_set and wb_actual > 0:
         print(f"[CAMERA] White balance: auto={auto_wb}, temp={wb_actual}K (UVC)")
     else:
-        # Fallback: the camera doesn't expose WB_TEMPERATURE. Auto WB is off,
-        # so the sensor runs at its factory-fixed color matrix. This is still
-        # consistent across captures — just not exactly 5600K.
         print(
             f"[CAMERA] White balance: auto={auto_wb} (manual mode, "
             "factory color matrix — WB_TEMPERATURE not exposed by this sensor)"
         )
-
-    print("[SYSTEM] Five-view known-grade capture initialized")
-    print(f"[INFO] Batch: {args.batch_id} | Grade: {reference_grade}")
-    print(f"[INFO] Target: {output_dir} | Resolution: {WIDTH}x{HEIGHT} MJPG")
 
     # Explicitly create the preview window up front. On macOS with OpenCV 5,
     # cv2.imshow alone often fails to create a visible window; namedWindow
@@ -262,6 +263,19 @@ def run_capture(args: argparse.Namespace) -> int:
     # frame is not a stale buffer.
     for _ in range(5):
         cap.read()
+
+    return cv2, cap, camera_index
+
+
+def run_equatorial(args: argparse.Namespace, cv2, cap, camera_index: int) -> int:
+    """Capture 4 equatorial turntable views per apple. No calyx shot."""
+    reference_grade, count = resolve_capture_inputs(args)
+    output_dir = Path(args.output_dir)
+    manifest_path = output_dir / "capture_manifest.jsonl"
+
+    print("[SYSTEM] Equatorial capture initialized (4 views per apple, no calyx)")
+    print(f"[INFO] Batch: {args.batch_id} | Grade: {reference_grade}")
+    print(f"[INFO] Target: {output_dir} | Resolution: {WIDTH}x{HEIGHT} MJPG")
 
     try:
         for fruit_index in range(count):
@@ -311,38 +325,70 @@ def run_capture(args: argparse.Namespace) -> int:
                 next_capture_at = sequence_start + (
                     (view_index + 1) * EQUATORIAL_INTERVAL_SECONDS
                 )
+            print(f"[COMPLETE] {profile_id}: 4/4 equatorial views")
+    except KeyboardInterrupt:
+        print("[INTERRUPT] Capture stopped safely.")
+        return 130
 
-            calyx_frame = _wait_for_space(
+    print(f"[COMPLETE] {count} profile(s) captured; manifest: {manifest_path}")
+    print("[TIP] Run --mode stem at the end of the session to capture calyx/stem photos.")
+    return 0
+
+
+def run_stem(args: argparse.Namespace, cv2, cap, camera_index: int) -> int:
+    """Capture standalone stem/calyx photos. Not tied to specific profiles."""
+    reference_grade, count = resolve_capture_inputs(args)
+    output_dir = Path(args.output_dir)
+    manifest_path = output_dir / "capture_manifest.jsonl"
+    grade_str = reference_grade or "unknown"
+
+    print("[SYSTEM] Stem/calyx capture initialized (standalone, no turntable)")
+    print(f"[INFO] Batch: {args.batch_id} | Grade: {grade_str}")
+    print(f"[INFO] Target: {output_dir} | Resolution: {WIDTH}x{HEIGHT} MJPG")
+
+    try:
+        for photo_index in range(count):
+            stem_id = f"{args.batch_id}-stem-{photo_index:05d}"
+            frame = _wait_for_space(
                 cv2,
                 cap,
                 (
-                    f"{profile_id} | EQUATORIAL DONE — STOP TURNTABLE",
-                    "Remove apple, invert: STEM DOWN / CALYX UP",
+                    f"STEM/CALYX {photo_index + 1}/{count}",
+                    "Position apple: STEM DOWN / CALYX UP",
                     "No rush — press SPACE when ready",
                 ),
             )
             _record_frame(
                 cv2,
-                calyx_frame,
+                frame,
                 output_dir,
                 manifest_path,
                 args,
-                profile_id,
-                reference_grade,
-                EQUATORIAL_SHOTS,
+                stem_id,
+                grade_str,
+                0,
                 "calyx",
                 camera_index,
             )
-            print(f"[COMPLETE] {profile_id}: 5/5 views")
+            print(f"[COMPLETE] {stem_id}: stem/calyx photo {photo_index + 1}/{count}")
     except KeyboardInterrupt:
-        print("[INTERRUPT] Capture stopped safely.")
+        print("[INTERRUPT] Stem capture stopped safely.")
         return 130
+
+    print(f"[COMPLETE] {count} stem/calyx photo(s) captured; manifest: {manifest_path}")
+    return 0
+
+
+def run_capture(args: argparse.Namespace) -> int:
+    cv2, cap, camera_index = _init_camera(args)
+    try:
+        if args.mode == "stem":
+            return run_stem(args, cv2, cap, camera_index)
+        else:
+            return run_equatorial(args, cv2, cap, camera_index)
     finally:
         cap.release()
         cv2.destroyAllWindows()
-
-    print(f"[COMPLETE] {count} profile(s) captured; manifest: {manifest_path}")
-    return 0
 
 
 def main(argv: Sequence[str] | None = None) -> int:

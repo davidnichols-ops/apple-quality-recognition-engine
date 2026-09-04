@@ -40,9 +40,16 @@ def test_filename_preserves_profile_grade_and_view() -> None:
 
 
 def test_resolve_capture_inputs_rejects_nonpositive_count() -> None:
-    args = argparse.Namespace(grade="G1", count=0)
+    args = argparse.Namespace(mode="equatorial", grade="G1", count=0)
     with pytest.raises(ValueError, match="positive"):
         resolve_capture_inputs(args)
+
+
+def test_resolve_capture_inputs_stem_mode_grade_optional() -> None:
+    args = argparse.Namespace(mode="stem", grade=None, count=5)
+    grade, count = resolve_capture_inputs(args)
+    assert grade is None
+    assert count == 5
 
 
 def test_append_manifest_writes_machine_readable_profile_metadata(tmp_path) -> None:
