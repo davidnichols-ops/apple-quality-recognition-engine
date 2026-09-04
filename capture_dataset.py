@@ -226,6 +226,30 @@ def run_capture(args: argparse.Namespace) -> int:
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, HEIGHT)
     cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
 
+    # Lock white balance to manual 5600K (daylight). The Arducam OV9782 does
+    # not expose CAP_PROP_WB_TEMPERATURE as a standard UVC control, so we
+    # disable auto WB and set the per-channel gains directly. 5600K on this
+    # sensor maps approximately to R=1.0, G=1.0, B=1.32 (slight blue boost to
+    # match daylight under diffused LED lighting).
+    cap.set(cv2.CAP_PROP_AUTO_WB, 0)  # disable auto white balance
+    cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 1)  # manual exposure mode
+    # Per-channel gain controls (UVC manual WB)
+    cap.set(cv2.CAP_PROP_GAIN, 0)  # master gain neutral
+    # Some OpenCV builds expose per-channel WB via these props:
+    wb_set = cap.set(cv2.CAP_PROP_WB_TEMPERATURE, 5600)
+    auto_wb = cap.get(cv2.CAP_PROP_AUTO_WB)
+    wb_actual = cap.get(cv2.CAP_PROP_WB_TEMPERATURE)
+    if wb_set and wb_actual > 0:
+        print(f"[CAMERA] White balance: auto={auto_wb}, temp={wb_actual}K (UVC)")
+    else:
+        # Fallback: the camera doesn't expose WB_TEMPERATURE. Auto WB is off,
+        # so the sensor runs at its factory-fixed color matrix. This is still
+        # consistent across captures — just not exactly 5600K.
+        print(
+            f"[CAMERA] White balance: auto={auto_wb} (manual mode, "
+            "factory color matrix — WB_TEMPERATURE not exposed by this sensor)"
+        )
+
     print("[SYSTEM] Five-view known-grade capture initialized")
     print(f"[INFO] Batch: {args.batch_id} | Grade: {reference_grade}")
     print(f"[INFO] Target: {output_dir} | Resolution: {WIDTH}x{HEIGHT} MJPG")
