@@ -316,8 +316,9 @@ def run_capture(args: argparse.Namespace) -> int:
                 cv2,
                 cap,
                 (
-                    f"{profile_id} | INVERT: STEM DOWN / CALYX UP",
-                    "PRESS SPACE TO CAPTURE CALYX VIEW",
+                    f"{profile_id} | EQUATORIAL DONE — STOP TURNTABLE",
+                    "Remove apple, invert: STEM DOWN / CALYX UP",
+                    "No rush — press SPACE when ready",
                 ),
             )
             _record_frame(
