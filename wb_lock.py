@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 from pathlib import Path
 
 import numpy as np
@@ -101,7 +100,7 @@ def calibrate_white_balance(cv2, cap) -> dict:
                 "method": "gray_world + daylight_blue_boost",
             }
 
-            print(f"[WB CALIBRATION] Computed gains:")
+            print("[WB CALIBRATION] Computed gains:")
             print(f"  R gain: {r_gain:.4f}")
             print(f"  G gain: {g_gain:.4f}")
             print(f"  B gain: {b_gain:.4f} (includes 3% daylight blue boost)")
@@ -162,6 +161,28 @@ def apply_wb_gains(frame: np.ndarray, gains: dict) -> np.ndarray:
     out[:, :, 0] *= b_gain  # B
     out[:, :, 1] *= g_gain  # G
     out[:, :, 2] *= r_gain  # R
+    np.clip(out, 0, 255, out=out)
+    return out.astype(np.uint8)
+
+
+def apply_exposure_boost(frame: np.ndarray, factor: float) -> np.ndarray:
+    """Apply a linear exposure multiplier to a frame.
+
+    The Arducam OV9782 exposes no hardware exposure control via OpenCV or
+    AVFoundation (Custom mode unsupported, exposureTargetBias min=max=0).
+    A linear pixel multiplier is the software equivalent of +EV:
+    factor 1.2 ≈ +0.26 EV (roughly +20% shutter time).
+
+    Args:
+        frame: BGR uint8 frame from OpenCV
+        factor: linear multiplier (1.0 = no change, 1.2 = +20%)
+
+    Returns:
+        Brightened BGR uint8 frame
+    """
+    if factor is None or factor == 1.0:
+        return frame
+    out = frame.astype(np.float32) * factor
     np.clip(out, 0, 255, out=out)
     return out.astype(np.uint8)
 

@@ -1,12 +1,19 @@
 #!/usr/bin/env python3
 """Minimal capture script — just camera + preview + spacebar save.
-Loads WB calibration from wb_calibration.json if available."""
+Loads WB calibration from wb_calibration.json if available.
+Optional --exposure N applies a linear brightness multiplier to saved frames."""
+import argparse
 import cv2
 import os
 import time
 from datetime import datetime
 
-from wb_lock import apply_wb_gains, load_calibration
+from wb_lock import apply_exposure_boost, apply_wb_gains, load_calibration
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--exposure", type=float, default=1.0,
+                    help="Software exposure multiplier for saved frames (e.g. 1.2 = +20%%)")
+args = parser.parse_args()
 
 OUT = "dataset/raw_ingest"
 os.makedirs(OUT, exist_ok=True)
@@ -20,6 +27,9 @@ if wb_gains is not None:
 else:
     print("[CAMERA] No WB calibration found. Run: python wb_lock.py --calibrate")
     print("[CAMERA] Captures will use camera auto WB (not recommended)")
+
+if args.exposure != 1.0:
+    print(f"[CAMERA] Software exposure boost: x{args.exposure:.2f} (+{(args.exposure - 1) * 100:.0f}%)")
 
 cap = cv2.VideoCapture(0)
 if not cap.isOpened():
@@ -60,8 +70,9 @@ while True:
     elif key == 32:  # SPACE
         ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         path = os.path.join(OUT, f"negative_{ts}.jpg")
-        # Apply WB gains before saving
+        # Apply WB gains + exposure boost before saving
         save_frame = apply_wb_gains(frame, wb_gains) if wb_gains else frame
+        save_frame = apply_exposure_boost(save_frame, args.exposure)
         cv2.imwrite(path, save_frame)
         count += 1
         print(f"  SAVED {path}  ({count} total)")

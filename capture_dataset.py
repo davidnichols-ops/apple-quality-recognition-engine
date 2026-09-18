@@ -14,7 +14,7 @@ from typing import Sequence
 
 from camera_utils import detect_arducam_index
 from grading_engine import VALID_GRADES
-from wb_lock import apply_wb_gains, load_calibration
+from wb_lock import apply_exposure_boost, apply_wb_gains, load_calibration
 
 WIDTH = 1280
 HEIGHT = 720
@@ -112,6 +112,12 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--cultivar")
     parser.add_argument("--output-dir", default="dataset/raw_ingest")
     parser.add_argument(
+        "--exposure",
+        type=float,
+        default=1.0,
+        help="Software exposure multiplier applied to saved frames (e.g. 1.2 = +20%%). The Arducam exposes no hardware exposure control, so this is applied in software at save time.",
+    )
+    parser.add_argument(
         "--allow-camera-fallback",
         action="store_true",
         help="Allow the built-in camera for a non-production test.",
@@ -171,11 +177,13 @@ def _wait_for_space(cv2, cap, lines: Sequence[str]) -> object:
             raise KeyboardInterrupt
 
 
-def _save_frame(cv2, path: Path, frame, wb_gains=None) -> None:
+def _save_frame(cv2, path: Path, frame, wb_gains=None, exposure: float = 1.0) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    # Apply software white balance correction before saving
+    # Apply software white balance + exposure correction before saving
     if wb_gains is not None:
         frame = apply_wb_gains(frame, wb_gains)
+    if exposure != 1.0:
+        frame = apply_exposure_boost(frame, exposure)
     if not cv2.imwrite(str(path), frame):
         raise RuntimeError(f"failed to write image: {path}")
 
@@ -202,7 +210,7 @@ def _record_frame(
         view_type,
     )
     image_path = output_dir / filename
-    _save_frame(cv2, image_path, frame, wb_gains=wb_gains)
+    _save_frame(cv2, image_path, frame, wb_gains=wb_gains, exposure=getattr(args, "exposure", 1.0))
     append_manifest(
         manifest_path,
         CaptureRecord(
@@ -254,6 +262,10 @@ def _init_camera(args: argparse.Namespace):
     else:
         print("[CAMERA] No WB calibration found. Run: python wb_lock.py --calibrate")
         print("[CAMERA] Captures will use camera auto WB (not recommended for training data)")
+
+    exposure = getattr(args, "exposure", 1.0)
+    if exposure != 1.0:
+        print(f"[CAMERA] Software exposure boost: x{exposure:.2f} (+{(exposure - 1) * 100:.0f}%)")
 
     # Explicitly create the preview window up front. On macOS with OpenCV 5,
     # cv2.imshow alone often fails to create a visible window; namedWindow
