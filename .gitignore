@@ -49,3 +49,4 @@ Thumbs.db
 # CEO briefing machinery (local only, not for public repo)
 roadmap.yml
 scripts/daily_briefing.py
+checkpoints/
