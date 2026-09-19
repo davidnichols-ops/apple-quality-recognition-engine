@@ -85,13 +85,20 @@ Before completing a job, verify:
 
 ## Local SAM 2 annotation procedure
 
-### Seed phase
+### Seed phase (production pipeline: `scripts/distill_labels.py`)
 
 1. Capture profiles with `profile_id`, `reference_grade`, batch, cultivar, lot, and view type metadata.
-2. Manually draw quick bounding box prompts for 100-200 bootstrap images across G1, G2, G3, CIDER, and DISCARD reference grades.
-3. Run `scripts/sam2_annotate.py` to feed box prompts into frozen SAM 2 and produce high-precision polygon masks.
-4. Convert polygon masks to YOLO-Seg labels (the script does this automatically).
-5. Review 100% of the seed annotations before the first training run.
+2. `pass-a` — auto-labels `apple` + `stem_calyx` on every sequence with zero human input (classical threshold bootstraps the apple box; a greenest-point heuristic seeds the calyx; SAM 2 video propagates across the rotation). ~4.2 s/frame at `sam2.1_hiera_large` on M4 MPS.
+3. `pass-b` — interactive defect prompting (run in Terminal; OpenCV GUI). Step frames with `a`/`d`, select `2`=`defect_surface` or `3`=`defect_critical`, drag loose boxes. Prompts may be dropped on ANY frame — required for defects that rotate into view mid-orbit.
+4. `pass-c` — propagates defect prompts with multi-frame conditioning into the per-frame `.npz` mask store.
+5. `export --overlays` — applies the priority merge (`defect_critical` > `stem_calyx` > `defect_surface`, everything clipped inside the apple mask) and writes YOLO-Seg `.txt` plus review renders in `dataset/preview/`.
+6. `split` — deterministic 80/20 train/val by `crc32(sequence_key) % 5`; all views of one apple stay in one partition. Negative frames (empty labels) are forced into train only.
+7. Review 100% of the seed annotations in `dataset/preview/` before the first training run.
+
+Known edge cases:
+
+- Mid-orbit disocclusion: a defect first visible at frame 3 must be prompted AT frame 3; SAM 2 back-propagates onto earlier frames only if the feature is actually visible there. Check overlays on pre-prompt frames for ghost activations (mitigated by the >0 logit floor and the 25 px contour floor).
+- MPS bf16 crash: multi-frame conditioning on MPS aborts in `MPSNDArrayMatrixMultiplication` because `maskmem_features` is hard-cast to bfloat16 in `sam2_video_predictor.py`. `distill_labels.propagate()` shadows `torch.bfloat16`->`float32` when `predictor.device.type == "mps"` (device reports `mps:0`, not `mps`).
 
 A practical first seed is 200 profiles: approximately 40 per reference grade, yielding 1,000 views. This is a planning target, not proof of sufficiency.
 

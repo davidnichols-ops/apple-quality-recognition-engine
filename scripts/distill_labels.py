@@ -198,22 +198,40 @@ def build_video_predictor(device: str, model_size: str):
 
 
 def propagate(predictor, seq_dir: Path, prompts: list[dict]) -> dict[int, dict[int, np.ndarray]]:
-    """Condition on all prompted frames, propagate, return {obj_id: {fidx: mask}}."""
-    state = predictor.init_state(video_path=str(seq_dir))
-    for i, p in enumerate(prompts):
-        kwargs = {"box": np.array(p["box"], np.float32)} if "box" in p else {
-            "points": np.array(p["points"], np.float32),
-            "labels": np.array(p["labels"], np.int32),
-        }
-        predictor.add_new_points_or_box(
-            state, frame_idx=p["frame_idx"], obj_id=p["obj_id"], **kwargs)
-    out: dict[int, dict[int, np.ndarray]] = {}
-    for fidx, obj_ids, logits in predictor.propagate_in_video(state):
-        for i, oid in enumerate(obj_ids):
-            m = (logits[i] > 0).squeeze().cpu().numpy()
-            if m.sum() >= 25:
-                out.setdefault(int(oid), {})[fidx] = m.astype(np.uint8)
-    return out
+    """Condition on all prompted frames, propagate, return {obj_id: {fidx: mask}}.
+
+    MPS workaround: sam2_video_predictor hard-casts maskmem_features to
+    torch.bfloat16 when storing conditioning-frame memory. MPS matmul then
+    aborts on the bf16-destination/fp32-accumulator mismatch (SIGABRT, not
+    catchable). Shadowing torch.bfloat16 with float32 for the duration of
+    the call keeps the memory features fp32; the model runs fp32 on MPS
+    anyway so nothing else is affected.
+    """
+    import torch
+    dev = getattr(predictor, "device", None)
+    shim = dev is not None and getattr(dev, "type", str(dev)) == "mps"
+    orig_bf16 = torch.bfloat16
+    if shim:
+        torch.bfloat16 = torch.float32
+    try:
+        state = predictor.init_state(video_path=str(seq_dir))
+        for p in prompts:
+            kwargs = {"box": np.array(p["box"], np.float32)} if "box" in p else {
+                "points": np.array(p["points"], np.float32),
+                "labels": np.array(p["labels"], np.int32),
+            }
+            predictor.add_new_points_or_box(
+                state, frame_idx=p["frame_idx"], obj_id=p["obj_id"], **kwargs)
+        out: dict[int, dict[int, np.ndarray]] = {}
+        for fidx, obj_ids, logits in predictor.propagate_in_video(state):
+            for i, oid in enumerate(obj_ids):
+                m = (logits[i] > 0).squeeze().cpu().numpy()
+                if m.sum() >= 25:
+                    out.setdefault(int(oid), {})[fidx] = m.astype(np.uint8)
+        return out
+    finally:
+        if shim:
+            torch.bfloat16 = orig_bf16
 
 
 def stage_frames(seq: list[Path]) -> tempfile.TemporaryDirectory:
