@@ -245,8 +245,14 @@ def stage_frames(seq: list[Path]) -> tempfile.TemporaryDirectory:
 # pass-a: auto apple + calyx
 # ---------------------------------------------------------------------------
 
+def filter_seqs(seqs: dict, only: str | None) -> dict:
+    if not only:
+        return seqs
+    return {k: v for k, v in seqs.items() if only in k}
+
+
 def cmd_pass_a(args) -> None:
-    seqs = discover_sequences(RAW)
+    seqs = filter_seqs(discover_sequences(RAW), args.only)
     print(f"[PASS-A] {len(seqs)} sequences")
     predictor = build_video_predictor(args.device, args.model_size)
     MASKS.mkdir(parents=True, exist_ok=True)
@@ -291,7 +297,7 @@ def cmd_pass_a(args) -> None:
 
 def cmd_pass_b(args) -> None:
     """Step frames (a/d), pick class (2/3), drag boxes. SPACE=next seq, q=quit."""
-    seqs = discover_sequences(RAW)
+    seqs = filter_seqs(discover_sequences(RAW), args.only)
     PROMPTS.mkdir(parents=True, exist_ok=True)
     win = "DEFECT PROMPTING  |  a/d=frame  2/3=class  z=undo  SPACE=next  s=skip  q=quit"
     cv2.namedWindow(win, cv2.WINDOW_NORMAL)
@@ -305,7 +311,7 @@ def cmd_pass_b(args) -> None:
             x0, y0 = state["drag"]
             state["drag"] = None
             box = [min(x0, x), min(y0, y), max(x0, x), max(y0, y)]
-            if box[2] - box[0] > 6 and box[3] - box[1] > 6:
+            if box[2] - box[0] > 15 and box[3] - box[1] > 15:
                 state["prompts"].append({
                     "frame_idx": state["fidx"], "class_id": state["cls"],
                     "obj_id": state["oid"], "box": box})
@@ -378,7 +384,7 @@ def cmd_pass_b(args) -> None:
 # ---------------------------------------------------------------------------
 
 def cmd_pass_c(args) -> None:
-    seqs = discover_sequences(RAW)
+    seqs = filter_seqs(discover_sequences(RAW), args.only)
     prompt_files = {p.stem: p for p in PROMPTS.glob("*.json")}
     if not prompt_files:
         print("[PASS-C] no prompt files -> nothing to propagate")
@@ -565,6 +571,8 @@ def main() -> None:
     ap.add_argument("--overlays", action="store_true")
     ap.add_argument("--redo", action="store_true", help="pass-b: re-prompt sequences that already have prompts")
     ap.add_argument("--start-seq", type=int, default=0)
+    ap.add_argument("--only", default=None,
+                    help="process only sequences whose key contains this substring")
     ap.add_argument("--seqs", type=int, default=3, help="benchmark: sequences to time")
     ap.add_argument("--target", type=int, default=500, help="benchmark: extrapolate to N frames")
     args = ap.parse_args()
