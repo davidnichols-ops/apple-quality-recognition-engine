@@ -2,9 +2,9 @@
 
 ## Scope
 
-This SOP governs annotation of the five-view profiles produced by `capture_dataset.py`. It separates the trusted reference grade from the visual labels used to train YOLO26.
+This SOP governs annotation of four-view equatorial profiles and separately captured stem/calyx views from `capture_dataset.py`. It separates the trusted reference grade from the visual labels used to train YOLO26-Seg.
 
-A profile contains four equatorial views and one inverted calyx view of the same physical apple. Every view shares one `profile_id`. The reference grade is stored in `capture_manifest.jsonl`; it is never encoded as a detector class.
+A profile contains four equatorial views of one physical apple. Stem/calyx views are captured in a separate pass and must be linked to the same physical apple before joining a profile or split. The reference grade is stored in `capture_manifest.jsonl`; it is never encoded as a detector class.
 
 ## Non-negotiable rule
 
@@ -25,8 +25,8 @@ The critical/surface split is not a defect taxonomy for its own sake. `defect_cr
 
 ## Profile handling
 
-1. Confirm that the five images share the same `profile_id` and reference grade.
-2. Keep all five views together in annotation jobs when possible.
+1. Confirm that the four equatorial images share the same `profile_id` and reference grade; verify the physical-apple link for any separate stem/calyx view.
+2. Keep all linked views together in annotation jobs when possible.
 3. Apply the same interpretation rules across all views, but annotate each image independently.
 4. Do not copy a hidden defect into a view where it is not visible.
 5. Never split views from one profile across train, validation, or test.
@@ -81,7 +81,7 @@ Before completing a job, verify:
 - duplicate overlapping boxes do not describe the same anomaly;
 - stem/calyx recesses are labeled `stem_calyx`, not as defects;
 - class names exactly match `data.yaml`;
-- the five profile views remain grouped.
+- all linked profile views remain grouped.
 
 ## Local SAM 2 annotation procedure
 
@@ -153,7 +153,7 @@ The facility grade is a reference outcome, not permission to falsify visual labe
 
 ## VLM advisory review
 
-Gemini 3.7 Flash may review all five views together and propose:
+Gemini 3.7 Flash may review all linked views together and propose:
 
 - a missed or questionable box;
 - a suggested grade for comparison;

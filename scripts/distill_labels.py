@@ -405,6 +405,10 @@ def cmd_pass_c(args) -> None:
         n = 0
         for fidx, f in enumerate(seq):
             store = load_mask_store(f.stem, img0.shape[:2])
+            # A rerun replaces the sequence's defect annotations. Otherwise a
+            # corrected class leaves the old mask behind in the saved store.
+            store[2][:] = 0
+            store[3][:] = 0
             for p in prompts:
                 oid = p["obj_id"]
                 if oid in masks and fidx in masks[oid]:

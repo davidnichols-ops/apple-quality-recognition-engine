@@ -1,10 +1,10 @@
 # Evidence-Gated Roadmap
 
-This roadmap replaces the idea of live recursive self-improvement with a governed learning loop. Stages advance on evidence, not calendar time or raw image count.
+This roadmap replaces the idea of live recursive self-improvement with a governed learning loop. Stages advance on evidence, not calendar time or raw image count. The current build target is a human-editable annotation and edge-case panel; manually reviewed YOLO26-Seg labels are the training source of truth. Depth Anything V2 is a candidate supporting signal and requires a measured gain over YOLO26-Seg alone.
 
 ## North-star outcome
 
-Demonstrate that a five-view, four-class detector plus deterministic policy can reproduce trusted facility grades on previously unseen apple profiles at the required line throughput, with traceable decisions and a safe human review loop.
+Demonstrate that a four-equatorial-view, four-class YOLO26-Seg detector plus deterministic policy can reproduce trusted facility grades on previously unseen apple profiles at the required line throughput, with separately captured stem/calyx views, traceable decisions, and a safe human review loop.
 
 ## Global release targets
 
@@ -27,7 +27,7 @@ Targets may be revised only with a documented customer or facility requirement.
 
 - four-class `data.yaml`;
 - versioned surface-ratio coverage policy;
-- five-view known-grade capture manifest;
+- four-view equatorial capture manifest and separate stem/calyx capture;
 - profile-level deterministic splitting;
 - pure geometry and grading tests;
 - typed review queue and VLM proposal contracts;
@@ -37,7 +37,7 @@ Targets may be revised only with a documented customer or facility requirement.
 ### Done when
 
 - tests and lint pass in CI;
-- one synthetic profile proves five views share a profile ID and split;
+- one synthetic profile proves all linked views of an apple share its profile ID and split;
 - geometry tests prove overlap is not double-counted;
 - a discard trigger affects only the nearby parent;
 - VLM proposals default to pending human review.
@@ -46,12 +46,13 @@ Targets may be revised only with a documented customer or facility requirement.
 
 ### Acquisition hypothesis
 
-Capture approximately 200 profiles: about 40 reference-grade profiles each for G1, G2, G3, CIDER, and DISCARD. Five views produce roughly 1,000 seed images. Add 5–10% pure black background frames as YOLO negative samples (see `docs/annotation_sop.md` → Background samples) so the detector does not hallucinate defects on the matte backdrop.
+Capture approximately 200 profiles: about 40 reference-grade profiles each for G1, G2, G3, CIDER, and DISCARD. Four equatorial views produce roughly 800 seed images, with stem/calyx views captured separately. Add 5–10% pure black background frames as YOLO negative samples (see `docs/annotation_sop.md` → Background samples) so the detector does not hallucinate defects on the matte backdrop.
 
 ### Required evidence
 
 - reference grade source, grader, facility policy, lot, cultivar, and capture batch recorded;
-- 100% seed annotation review under `docs/annotation_sop.md`;
+- 100% seed annotation review under `docs/annotation_sop.md`, including human assignment of critical versus surface and correction of SAM 2 masks;
+- inspectable case records retaining original images, labels, corrections, reasons, and provenance;
 - every visible defect boxed regardless of reference grade;
 - background negative samples included in the train split (5–10% of total);
 - profile split audit shows zero leakage;
@@ -71,7 +72,7 @@ The seed is coherent enough to train a baseline and every questionable reference
 
 ## Stage 2 — baseline detector and deterministic calibration
 
-Train YOLO26 candidates on the approved seed. Use YOLO26x as an accuracy ceiling and compare smaller variants for edge deployment.
+Train YOLO26-Seg candidates on the approved seed. Use YOLO26x-Seg as an accuracy ceiling and compare smaller variants for edge deployment. Compare a depth-assisted decision against this baseline only after a representative bite, surface-mark, and normal-anatomy holdout exists.
 
 ### Required evidence
 
@@ -89,7 +90,7 @@ A baseline checkpoint and policy can be reproduced from an immutable dataset ver
 ### Pivot criteria
 
 - If generic `defect_surface` recall is weak, improve data and annotation before adding sub-taxonomy.
-- If grade errors cluster at coverage boundaries, run the SAM 2 segmentation pilot.
+- If grade errors cluster at coverage boundaries, compare mask-derived coverage with the box baseline.
 - If grade errors depend on defect type despite reliable localization, test one evidence-backed class split rather than restoring eleven classes.
 - If YOLO26x misses throughput, benchmark smaller variants before changing hardware.
 
@@ -122,26 +123,26 @@ The system reaches the release targets or the error curve shows which architectu
 
 Stop adding random easy images when they no longer improve the weakest held-out slice. Shift acquisition to measured failure modes.
 
-## Stage 4 — selective segmentation experiment
+## Stage 4 — segmentation coverage and optional depth experiment
 
-Run only if Stage 2 or 3 shows box-area bias is a material cause of boundary misgrading.
+Evaluate mask coverage if Stage 2 or 3 shows box-area bias is a material cause of boundary misgrading. Evaluate depth separately if YOLO26-Seg confuses bites with surface marks or normal stem/calyx anatomy.
 
 ### Experiment
 
 - sample human-reviewed boundary profiles;
-- annotate pixel masks for visible anomalies via the SAM 2 pipeline;
-- run a small crop-level segmentation candidate;
+- use human-reviewed masks from the SAM 2-assisted annotation loop;
+- run the trained YOLO26-Seg candidate;
 - feed refined coverage into the unchanged deterministic grade function;
 - compare against box-only decisions on untouched profiles;
 - measure end-to-end M4 latency and fallback behavior.
 
 ### Promotion gate
 
-Promote segmentation only if it produces a meaningful held-out profile-grade gain, preserves line throughput, and reduces rather than redistributes boundary errors. Otherwise keep the box-only system.
+Use mask coverage only if it produces a meaningful held-out profile-grade gain, preserves line throughput, and reduces rather than redistributes boundary errors. Add V2 only if it provides a consistent incremental improvement in critical/surface decisions over YOLO26-Seg alone, including normal stem/calyx controls.
 
 ## Stage 5 — Gemini 3.7 Flash advisory pilot
 
-Gemini reviews complete five-view profiles from the human review queue, not the live stream.
+Gemini may review complete captured profiles from the human review queue, not the live stream.
 
 ### Structured proposal fields
 
@@ -178,7 +179,7 @@ At this stage, freeze a geographically or temporally separated test cohort if po
 
 ### Required evidence
 
-- complete five-view profile association under line motion;
+- complete association of the four equatorial views and any separate stem/calyx view under line motion;
 - actuator timing contract and fail-safe behavior;
 - sustained camera and CoreML operation;
 - throughput distribution, not only average FPS;
@@ -217,6 +218,6 @@ Reconsider the architecture if any of these remain true after targeted data and 
 - reference grades are too inconsistent to define a learnable target;
 - visible RGB surface evidence cannot separate required grades;
 - generic defect geometry cannot meet the target and evidence-backed taxonomy or segmentation does not close the gap;
-- the five-view acquisition cannot fit the physical line cycle;
+- the required view acquisition cannot fit the physical line cycle;
 - discard risk cannot meet the safety target;
 - commercial licensing or customer privacy constraints make deployment nonviable.

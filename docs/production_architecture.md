@@ -2,7 +2,7 @@
 
 ## Decision boundary
 
-The live sorter is a bounded deterministic system. YOLO observations and optional segmentation measurements feed a versioned grading policy. A VLM may inspect evidence and create a proposal, but it is not a production control plane.
+The intended live sorter uses YOLO26-Seg regions as primary visual observations and a versioned grading policy for operational decisions. The first operational interface is a human-readable annotation and edge-case panel. Depth Anything V2 is diagnostic unless held-out evidence shows that it adds consistent value to critical/surface classification. A VLM may inspect records and create a proposal, but it is not a production control plane.
 
 Authority is ordered as follows:
 
@@ -53,7 +53,7 @@ Coverage is the union of `defect_surface` boxes clipped to the apple parent. Thi
 
 `defect_critical` is evaluated per apple. Any critical defect bound to an apple forces `DISCARD` regardless of surface coverage. This replaces the old per-parent discard proximity logic — the discard signal is now a direct critical-defect observation, not a proximity heuristic.
 
-### Five-view aggregation
+### Required-view aggregation
 
 The production target is one profile per physical apple:
 
@@ -134,7 +134,7 @@ The VLM may not:
 
 ## Dataset and leakage controls
 
-The unit of independence is a physical apple profile, not an image. All five views stay in one partition. The deterministic splitter hashes `profile_id`; SAM 2 pipeline output must be audited against the same rule.
+The unit of independence is a physical apple profile, not an image. All four equatorial views and any separately captured stem/calyx views linked to that apple stay in one partition. The deterministic splitter hashes `profile_id`; SAM 2 pipeline output must be audited against the same rule.
 
 Reference grade is evaluation metadata. It does not replace image annotation and must not determine whether annotators draw a defect. The test partition stays untouched by threshold calibration, prompt tuning, class redesign, and model selection.
 
@@ -171,7 +171,7 @@ YOLO26x is the accuracy-ceiling candidate, not an automatic deployment choice. B
 - Missing or malformed grading policy: fail startup; do not silently load hidden defaults.
 - Model schema mismatch: benchmark mode, no trusted grading or harvest.
 - Camera disconnect: bounded reconnect attempts, then safe stop.
-- Incomplete five-view profile: review required.
+- Incomplete required-view profile: review required.
 - Orphan defect: telemetry review.
 - Boundary coverage with unavailable segmentation: retain deterministic box grade and mark for review.
 - VLM timeout or malformed output: retain deterministic grade; no state change.

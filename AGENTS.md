@@ -15,7 +15,7 @@
   100` maps to G1/G2/G3/CIDER via versioned thresholds.
 - `stem_calyx` detections are anatomical exclusion zones, never counted as
   defects.
-- All five views of one physical apple must stay in one dataset partition.
+- All four equatorial views of one physical apple must stay in one dataset partition; stem/calyx views are captured separately.
 - Segmentation may refine coverage but does not replace grading policy.
 - VLM output is advisory and defaults to `pending_human_review`.
 - No live training, automatic annotation acceptance, policy mutation, or

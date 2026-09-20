@@ -29,6 +29,13 @@ apple_env/
 
 # Dataset (captured images)
 dataset/
+dataset_local/
+logs/
+runs/
+wb_calibration.json
+training_results.csv
+training_results.png
+confusion_matrix.png
 
 # Model files
 *.mlpackage
