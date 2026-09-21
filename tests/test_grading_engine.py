@@ -49,6 +49,12 @@ def test_binding_chooses_parent_with_highest_ioa() -> None:
     assert bind_defects_to_parents(defects, parents, 0.10) == [[0], [1]]
 
 
+def test_zero_binding_threshold_does_not_attach_nonoverlapping_critical() -> None:
+    assert bind_defects_to_parents([(150, 150, 160, 160)], [(0, 0, 100, 100)], 0.0) == [
+        []
+    ]
+
+
 def test_expected_four_class_schema_is_exact() -> None:
     assert model_names_match_expected_schema(
         {0: "apple", 1: "stem_calyx", 2: "defect_surface", 3: "defect_critical"}
@@ -159,7 +165,13 @@ def test_profile_grade_uses_worst_complete_view() -> None:
 
 def test_profile_grade_worst_is_discard() -> None:
     result = aggregate_profile_grades(
-        [decision("G1"), decision("G2"), decision("DISCARD"), decision("G3"), decision("G1")],
+        [
+            decision("G1"),
+            decision("G2"),
+            decision("DISCARD"),
+            decision("G3"),
+            decision("G1"),
+        ],
         expected_views=5,
     )
     assert result.grade == "DISCARD"
@@ -167,7 +179,13 @@ def test_profile_grade_worst_is_discard() -> None:
 
 def test_profile_grade_cider_is_worse_than_g3() -> None:
     result = aggregate_profile_grades(
-        [decision("G3"), decision("G3"), decision("CIDER"), decision("G3"), decision("G3")],
+        [
+            decision("G3"),
+            decision("G3"),
+            decision("CIDER"),
+            decision("G3"),
+            decision("G3"),
+        ],
         expected_views=5,
     )
     assert result.grade == "CIDER"

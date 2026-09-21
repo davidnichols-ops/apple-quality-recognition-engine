@@ -84,13 +84,9 @@ class GradingPolicy:
 
     def validate(self) -> None:
         if not 0 < self.surface_ratio_g1_pct < self.surface_ratio_g2_pct:
-            raise ValueError(
-                "surface ratios must satisfy 0 < G1 < G2"
-            )
+            raise ValueError("surface ratios must satisfy 0 < G1 < G2")
         if not self.surface_ratio_g2_pct < self.surface_ratio_g3_pct <= 100:
-            raise ValueError(
-                "surface ratios must satisfy G2 < G3 <= 100"
-            )
+            raise ValueError("surface ratios must satisfy G2 < G3 <= 100")
         if not 0 <= self.ioa_binding_threshold <= 1:
             raise ValueError("ioa_binding_threshold must be between 0 and 1")
         if self.refinement_margin_pct < 0:
@@ -216,7 +212,7 @@ def bind_defects_to_parents(
         if not scores:
             continue
         best_parent_index = max(range(len(scores)), key=scores.__getitem__)
-        if scores[best_parent_index] >= ioa_threshold:
+        if scores[best_parent_index] > 0 and scores[best_parent_index] >= ioa_threshold:
             bindings[best_parent_index].append(defect_index)
     return bindings
 

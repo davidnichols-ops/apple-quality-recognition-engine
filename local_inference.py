@@ -8,23 +8,29 @@ Candidate model: YOLO26 CoreML export at 640x640; deployment size selected by be
 """
 
 import argparse
+import json
 import os
 import time
-from dataclasses import asdict
 
 import cv2
 from ultralytics import YOLO
 
 from camera_utils import detect_arducam_index
-from edge_harvest_schema import write_telemetry
+from edge_harvest_schema import compute_frame_hash, write_telemetry
 from grading_engine import (
     EXPECTED_CLASS_NAMES,
-    bind_defects_to_parents,
-    grade_apple,
     load_grading_policy,
     model_names_match_expected_schema,
 )
-from glove_masking import mask_blue_gloves, suppress_glove_defects
+from glove_masking import mask_blue_gloves
+from line_runtime import (
+    DETECTION_CONFIDENCE_FLOOR,
+    FrameAssessment,
+    assess_result,
+    focus_score,
+    frame_event,
+    gate_frame,
+)
 from override_persistence import persist_override
 
 
@@ -117,7 +123,23 @@ def main():
         action="store_true",
         help="Use yolo26x.pt only when the requested model is unavailable.",
     )
+    parser.add_argument(
+        "--min-sharpness",
+        type=float,
+        default=25.0,
+        help="Candidate Laplacian-variance floor; lower-scoring frames emit no grade.",
+    )
+    parser.add_argument(
+        "--max-consecutive-harvest-frames",
+        type=int,
+        default=300,
+        help="Stop with no grade after this many successive harvested frames.",
+    )
     args = parser.parse_args()
+    if args.min_sharpness < 0:
+        parser.error("--min-sharpness must be non-negative")
+    if args.max_consecutive_harvest_frames < 1:
+        parser.error("--max-consecutive-harvest-frames must be positive")
 
     print("[SYSTEM]: Initializing M4 Edge Sorting Pipeline Engine...")
     policy = load_grading_policy(args.policy)
@@ -181,6 +203,9 @@ def main():
     harvest_dir = "dataset/edge_harvest"
 
     frame_count = 0
+    previous_frame_signature = None
+    previous_status = None
+    consecutive_harvest_frames = 0
     try:
         while True:
             frame_count += 1
@@ -191,141 +216,137 @@ def main():
             # If the camera failed to produce a frame after all retries, bail out
             if frame is None:
                 print("[ERROR]: No frame available. Exiting inference loop.")
+                print(
+                    json.dumps(
+                        {
+                            "event": "frame_assessment",
+                            "frame_id": frame_count,
+                            "status": "camera_failure",
+                            "image": None,
+                            "grades": [],
+                            "review_reasons": ["camera_failure"],
+                        }
+                    ),
+                    flush=True,
+                )
                 break
 
-            # Blue nitrile glove masking — runs on CPU in <1ms before inference.
-            # Suppresses finger edge artifacts that share spectrum with apple
-            # skin tones. Defect candidates overlapping the glove mask are
-            # dropped after detection.
-            glove_mask, _ = mask_blue_gloves(frame)
-
-            results = model(frame, conf=0.35, imgsz=640, verbose=False)
-
-            parent_boxes = []
-            stem_calyx_boxes = []
-            surface_defect_boxes = []
-            critical_defect_boxes = []
-            all_detections = []
-
-            for box in results[0].boxes:
-                cls_id = int(box.cls[0])
-                coords = list(map(int, box.xyxy[0]))
-                confidence = float(box.conf[0])
-                class_name = model.names[cls_id]
-                detection = {
-                    "id": cls_id,
-                    "name": class_name,
-                    "box": coords,
-                    "conf": confidence,
-                }
-                all_detections.append(detection)
-                if benchmark_mode:
-                    continue
-                if class_name == "apple":
-                    parent_boxes.append({**detection, "defects": [], "criticals": []})
-                elif class_name == "stem_calyx":
-                    stem_calyx_boxes.append(detection)
-                elif class_name == "defect_surface":
-                    surface_defect_boxes.append(detection)
-                elif class_name == "defect_critical":
-                    critical_defect_boxes.append(detection)
-
-            # Suppress defect candidates that overlap the glove mask.
-            if not benchmark_mode and glove_mask is not None:
-                surface_defect_boxes = [
-                    d
-                    for d in surface_defect_boxes
-                    if d["box"]
-                    in suppress_glove_defects(
-                        [d["box"] for d in surface_defect_boxes], glove_mask
-                    )
-                ]
-                critical_defect_boxes = [
-                    d
-                    for d in critical_defect_boxes
-                    if d["box"]
-                    in suppress_glove_defects(
-                        [d["box"] for d in critical_defect_boxes], glove_mask
-                    )
-                ]
-
-            parent_coordinates = [parent["box"] for parent in parent_boxes]
-            surface_coordinates = [d["box"] for d in surface_defect_boxes]
-            critical_coordinates = [d["box"] for d in critical_defect_boxes]
-
-            surface_bindings = bind_defects_to_parents(
-                surface_coordinates,
-                parent_coordinates,
-                policy.ioa_binding_threshold,
-            )
-            critical_bindings = bind_defects_to_parents(
-                critical_coordinates,
-                parent_coordinates,
-                policy.ioa_binding_threshold,
-            )
-            for parent_index, defect_indexes in enumerate(surface_bindings):
-                parent_boxes[parent_index]["defects"] = [
-                    surface_defect_boxes[index] for index in defect_indexes
-                ]
-            for parent_index, defect_indexes in enumerate(critical_bindings):
-                parent_boxes[parent_index]["criticals"] = [
-                    critical_defect_boxes[index] for index in defect_indexes
-                ]
-            bound_surface = {
-                idx for indexes in surface_bindings for idx in indexes
-            }
-            bound_critical = {
-                idx for indexes in critical_bindings for idx in indexes
-            }
-            orphan_defect_count = (
-                len(surface_defect_boxes)
-                - len(bound_surface)
-                + len(critical_defect_boxes)
-                - len(bound_critical)
-            )
-
-            for parent_index, parent in enumerate(parent_boxes):
-                decision = grade_apple(
-                    parent["box"],
-                    [d["box"] for d in parent["defects"]],
-                    [d["box"] for d in parent["criticals"]],
-                    policy,
-                )
-                parent["decision"] = decision
-                parent["grade"] = decision.grade
-
-            grading_results = [
-                {
-                    **asdict(parent["decision"]),
-                    "defects": parent["defects"],
-                    "criticals": parent["criticals"],
-                }
-                for parent in parent_boxes
-            ]
-            review_reasons = []
-            if any(result["requires_refinement"] for result in grading_results):
-                review_reasons.append("coverage_near_grade_boundary")
-            if orphan_defect_count:
-                review_reasons.append("orphan_defect")
-            if not benchmark_mode:
-                write_telemetry(
+            height, width = frame.shape[:2]
+            frame_hash = None
+            try:
+                frame_hash = compute_frame_hash(frame)
+                sharpness = focus_score(frame)
+                assessment = gate_frame(
                     frame,
-                    all_detections,
-                    harvest_dir,
-                    grading_results=grading_results,
-                    force_review=bool(review_reasons),
-                    review_reason=",".join(review_reasons) or None,
-                    model_id=os.path.basename(model_path),
-                    policy_version=policy.policy_version,
+                    previous_frame_signature,
+                    frame_hash,
+                    sharpness,
+                    args.min_sharpness,
                 )
+            except Exception as exc:
+                print(f"[ERROR]: Frame preprocessing failed: {exc}")
+                assessment = FrameAssessment(
+                    "preprocess_error_no_grade",
+                    height,
+                    width,
+                    review_reasons=["preprocess_error"],
+                )
+            if assessment is None:
+                # Query below the former 0.35 cutoff so uncertain critical
+                # candidates are available to grading and review harvest.
+                try:
+                    glove_mask, _ = mask_blue_gloves(frame)
+                    results = model(
+                        frame,
+                        conf=DETECTION_CONFIDENCE_FLOOR,
+                        imgsz=640,
+                        verbose=False,
+                    )
+                    if len(results) != 1:
+                        assessment = FrameAssessment(
+                            "invalid_result",
+                            height,
+                            width,
+                            review_reasons=["invalid_result_count"],
+                        )
+                    else:
+                        assessment = assess_result(
+                            frame,
+                            results[0],
+                            model.names,
+                            policy,
+                            glove_mask=glove_mask,
+                            benchmark_mode=benchmark_mode,
+                        )
+                except Exception as exc:
+                    print(f"[ERROR]: Frame inference failed: {exc}")
+                    assessment = FrameAssessment(
+                        "inference_error_no_grade",
+                        height,
+                        width,
+                        review_reasons=["inference_error"],
+                    )
+            if frame_hash is not None:
+                previous_frame_signature = (height, width, frame_hash)
+
+            parent_boxes = assessment.parents
+            stem_calyx_boxes = assessment.stem_calyx
+            all_detections = assessment.detections
+            grading_results = assessment.grading_results
+            review_reasons = list(assessment.review_reasons)
+            # The transition off a graded frame is recorded once, not by
+            # replaying its last grade or harvesting every empty belt frame.
+            if assessment.status == "no_apple" and previous_status == "graded":
+                review_reasons.append("empty_after_grade")
+            elif assessment.status in {"duplicate_frame", "blur_no_grade"}:
+                if previous_status != assessment.status:
+                    review_reasons.append(assessment.status)
+            previous_status = assessment.status
+            try:
+                saved_path = None
+                if not benchmark_mode:
+                    saved_path = write_telemetry(
+                        frame,
+                        all_detections,
+                        harvest_dir,
+                        grading_results=grading_results,
+                        force_review=bool(review_reasons),
+                        review_reason=",".join(review_reasons) or None,
+                        model_id=os.path.basename(model_path),
+                        policy_version=policy.policy_version,
+                        frame_status=assessment.status,
+                    )
+            except Exception as exc:
+                print(f"[ERROR]: Review harvest failed: {exc}")
+                failed = FrameAssessment(
+                    "harvest_failure_no_grade",
+                    height,
+                    width,
+                    review_reasons=["harvest_failure"],
+                )
+                print(json.dumps(frame_event(frame_count, failed)), flush=True)
+                break
+            consecutive_harvest_frames = (
+                consecutive_harvest_frames + 1 if saved_path is not None else 0
+            )
+            if consecutive_harvest_frames >= args.max_consecutive_harvest_frames:
+                stopped = FrameAssessment(
+                    "harvest_backlog_no_grade",
+                    height,
+                    width,
+                    review_reasons=["harvest_backlog"],
+                )
+                print(json.dumps(frame_event(frame_count, stopped)), flush=True)
+                break
+            print(json.dumps(frame_event(frame_count, assessment)), flush=True)
 
             # --- STAGE 6: OUTPUT RENDERING ENGINE ---
             fps = 1.0 / (time.time() - start_time)
 
             if not args.no_display:
-                # Draw parent boxes first
+                # Draw parent boxes only from this frame's accepted result.
                 for parent in parent_boxes:
-                    x1, y1, x2, y2 = parent["box"]
+                    x1, y1, x2, y2 = (int(round(v)) for v in parent["box"])
                     grade = parent["grade"]
                     display_text = format_display_text(
                         parent["name"], parent["conf"], grade
@@ -356,7 +377,7 @@ def main():
 
                     # Draw bounded surface defects (Red)
                     for defect in parent["defects"]:
-                        dx1, dy1, dx2, dy2 = defect["box"]
+                        dx1, dy1, dx2, dy2 = (int(round(v)) for v in defect["box"])
                         defect_text = format_display_text(
                             defect["name"], defect["conf"]
                         )
@@ -373,13 +394,11 @@ def main():
 
                     # Draw bounded critical defects (Magenta)
                     for critical in parent["criticals"]:
-                        cx1, cy1, cx2, cy2 = critical["box"]
+                        cx1, cy1, cx2, cy2 = (int(round(v)) for v in critical["box"])
                         critical_text = format_display_text(
                             critical["name"], critical["conf"]
                         )
-                        cv2.rectangle(
-                            frame, (cx1, cy1), (cx2, cy2), (255, 0, 255), 2
-                        )
+                        cv2.rectangle(frame, (cx1, cy1), (cx2, cy2), (255, 0, 255), 2)
                         cv2.putText(
                             frame,
                             critical_text,
@@ -392,7 +411,7 @@ def main():
 
                 # Draw stem/calyx exclusion zones (Yellow)
                 for sc in stem_calyx_boxes:
-                    sx1, sy1, sx2, sy2 = sc["box"]
+                    sx1, sy1, sx2, sy2 = (int(round(v)) for v in sc["box"])
                     sc_text = format_display_text(sc["name"], sc["conf"])
                     cv2.rectangle(frame, (sx1, sy1), (sx2, sy2), (0, 255, 255), 1)
                     cv2.putText(
@@ -438,6 +457,7 @@ def main():
                         review_reason="operator_override",
                         model_id=os.path.basename(model_path),
                         policy_version=policy.policy_version,
+                        frame_status=assessment.status,
                     )
             elif frame_count % 30 == 0:
                 print(f"\r[FPS] {fps:.1f}", end="", flush=True)

@@ -79,6 +79,9 @@ class TelemetryPayload:
     reviewed_at: Optional[str] = None
     model_id: Optional[str] = None
     policy_version: Optional[str] = None
+    image_width: Optional[int] = None
+    image_height: Optional[int] = None
+    frame_status: Optional[str] = None
 
 
 def compute_frame_hash(frame_np: Any) -> str:
@@ -163,11 +166,28 @@ def validate_telemetry(json_dict: Dict[str, Any]) -> bool:
         "reviewed_at",
         "model_id",
         "policy_version",
+        "frame_status",
     ):
         if json_dict.get(optional_text) is not None and not isinstance(
             json_dict[optional_text], str
         ):
             raise ValueError(f"'{optional_text}' must be a string or None.")
+    for dimension in ("image_width", "image_height"):
+        value = json_dict.get(dimension)
+        if json_dict.get("frame_status") is not None and value is None:
+            raise ValueError(f"'{dimension}' is required for frame status.")
+        if value is not None and (
+            not isinstance(value, int) or isinstance(value, bool) or value <= 0
+        ):
+            raise ValueError(f"'{dimension}' must be a positive integer.")
+    if json_dict.get("frame_status") not in (None, "graded") and json_dict.get(
+        "grading_results"
+    ):
+        raise ValueError("no-grade frame status cannot carry grading results")
+    if json_dict.get("frame_status") == "graded" and not json_dict.get(
+        "grading_results"
+    ):
+        raise ValueError("graded frame status requires grading results")
 
     # Validate each bounding box entry.
     for idx, bb in enumerate(json_dict["bounding_boxes"]):
@@ -202,6 +222,7 @@ def write_telemetry(
     review_reason: Optional[str] = None,
     model_id: Optional[str] = None,
     policy_version: Optional[str] = None,
+    frame_status: Optional[str] = None,
 ) -> Optional[str]:
     """Build, validate, and persist a telemetry payload + JPG pair.
 
@@ -226,6 +247,8 @@ def write_telemetry(
         review_reason: Machine-readable reason for review queue admission.
         model_id: Model artifact identifier used for inference.
         policy_version: Deterministic policy version used for grading.
+        frame_status: Current-frame grading status; a no-grade status never
+            carries a grade from an earlier frame.
 
     Returns:
         The path to the written telemetry JSON file, or ``None`` if no
@@ -234,6 +257,10 @@ def write_telemetry(
     volatile_detections = [d for d in detections if 0.40 <= d["conf"] <= 0.65]
     if not volatile_detections and not operator_override and not force_review:
         return None
+
+    height, width = frame.shape[:2]
+    if height <= 0 or width <= 0:
+        raise ValueError("harvest frame must have positive image dimensions")
 
     import cv2
 
@@ -269,6 +296,9 @@ def write_telemetry(
         review_reason=review_reason,
         model_id=model_id,
         policy_version=policy_version,
+        image_width=int(width),
+        image_height=int(height),
+        frame_status=frame_status,
     )
     payload_dict = asdict(payload)
     validate_telemetry(payload_dict)

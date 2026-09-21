@@ -64,6 +64,25 @@ The production target is one profile per physical apple:
 
 The current camera capture script implements the acquisition profile. The live loop still grades individual frames; profile tracking and actuator integration remain a later milestone and must not be described as complete.
 
+The live loop emits one `frame_assessment` JSON event per captured frame, with
+that frame's ID, width, height, status, and grades. A blur, duplicate image,
+empty detector result, result/image mismatch, or unbound critical candidate
+emits an empty grade list; consumers must never reuse the previous event's
+grade. Detector `xyxy` coordinates are accepted only when the result's original
+image bytes and dimensions match the current frame. Empty results keep the
+current frame's dimensions. Review harvest records also carry dimensions and
+frame status, including a forced empty result after a graded frame.
+
+The default blur floor (`--min-sharpness 25`) and detector confidence floor
+(`0.20`, retaining uncertain critical candidates for review) are candidate
+operating values. Camera focus, lighting, and model recall must be measured on
+held-out belt footage before physical sorting. Preprocessing, inference, and
+review-harvest failures emit no grade. The loop also stops after a configurable
+run of consecutive harvest writes (`--max-consecutive-harvest-frames`, default
+300) so a persistent fault cannot fill storage indefinitely. These events are
+advisory software output; no actuator or physical-line safety integration
+exists yet.
+
 ## Deterministic policy
 
 The policy inputs are:
