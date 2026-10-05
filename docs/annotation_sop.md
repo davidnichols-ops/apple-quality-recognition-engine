@@ -100,7 +100,7 @@ Known edge cases:
 - Mid-orbit disocclusion: a defect first visible at frame 3 must be prompted AT frame 3; SAM 2 back-propagates onto earlier frames only if the feature is actually visible there. Check overlays on pre-prompt frames for ghost activations (mitigated by the >0 logit floor and the 25 px contour floor).
 - MPS bf16 crash: multi-frame conditioning on MPS aborts in `MPSNDArrayMatrixMultiplication` because `maskmem_features` is hard-cast to bfloat16 in `sam2_video_predictor.py`. `distill_labels.propagate()` shadows `torch.bfloat16`->`float32` when `predictor.device.type == "mps"` (device reports `mps:0`, not `mps`).
 
-A practical first seed is 200 profiles: approximately 40 per reference grade, yielding 1,000 views. This is a planning target, not proof of sufficiency.
+A practical first seed is 200 profiles: approximately 40 per reference grade, yielding 800 equatorial views plus a separately inventoried stem/calyx reference cohort. This is a planning target, not proof of sufficiency.
 
 ### Background (negative) samples
 
@@ -131,7 +131,7 @@ Procedure:
 
 ### Split policy
 
-Use a 70/20/10 profile-level split. Run `scripts/split_profiles.py` so all views of one `profile_id` stay in one partition. Audit the exported manifests before training.
+Use a 70/20/10 profile-level split. Run `scripts/split_profiles.py` so all four equatorial views of one `profile_id` stay in one partition. The script writes unlinked stem/calyx captures to `standalone_calyx_inventory.jsonl` and excludes them from grading splits. Audit the exported manifests before training.
 
 Stratify by reference grade and inspect representation by cultivar, lot, capture day, camera, and lighting. The untouched test set must not be used to tune thresholds, prompts, or annotation rules.
 

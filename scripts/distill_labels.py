@@ -70,7 +70,7 @@ CKPTS = {
 
 RAW_RE = re.compile(
     r"^raw_\d{8}_\d{6}_\d{6}_(.+)_(g1|g2|g3|cider|discard|unknown)"
-    r"_(equatorial|stem|negative)_view_\d+\.jpg$"
+    r"_(equatorial|stem|calyx|negative)_view_\d+\.jpg$"
 )
 NEG_RE = re.compile(r"^negative_(\d{8})_(\d{6})_\d+\.jpg$")
 

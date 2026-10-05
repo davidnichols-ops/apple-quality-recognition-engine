@@ -58,9 +58,13 @@ Coverage is the union of `defect_surface` boxes clipped to the apple parent. Thi
 The production target is one profile per physical apple:
 
 - views 0-3: equatorial views at approximately 90-degree intervals;
-- view 4: calyx view;
 - final grade: worst visible deterministic grade across the complete profile;
 - incomplete profile: review required, not silently treated as complete.
+
+Stem/calyx photographs are currently captured under independent IDs as a
+separate anatomical-reference cohort. They are not a fifth profile view and do
+not enter grading splits or profile aggregation unless a future capture
+contract records an explicit physical-apple link.
 
 The current camera capture script implements the acquisition profile. The live loop still grades individual frames; profile tracking and actuator integration remain a later milestone and must not be described as complete.
 

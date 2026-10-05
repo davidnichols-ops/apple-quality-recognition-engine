@@ -50,7 +50,25 @@ def read_manifest(path: Path) -> list[dict]:
     return records
 
 
-def validate_profiles(records: Iterable[dict], expected_views: int = 5) -> None:
+def partition_cohorts(records: Iterable[dict]) -> tuple[list[dict], list[dict]]:
+    """Separate grading profiles from unlinked anatomical references."""
+    equatorial: list[dict] = []
+    standalone_calyx: list[dict] = []
+    for record in records:
+        # Older manifests predate view_type and contain equatorial profiles.
+        view_type = str(record.get("view_type", "equatorial"))
+        if view_type == "equatorial":
+            equatorial.append(record)
+        elif view_type in {"calyx", "stem"}:
+            standalone_calyx.append(record)
+        else:
+            raise ValueError(f"unsupported manifest view_type: {view_type}")
+    return equatorial, standalone_calyx
+
+
+def validate_profiles(
+    records: Iterable[dict], *, expected_views: int = 4
+) -> None:
     profiles: dict[str, list[dict]] = defaultdict(list)
     for record in records:
         profiles[str(record["profile_id"])].append(record)
@@ -59,13 +77,20 @@ def validate_profiles(records: Iterable[dict], expected_views: int = 5) -> None:
         view_indexes = [int(record["view_index"]) for record in profile_records]
         if len(grades) != 1:
             raise ValueError(f"profile {profile_id} has inconsistent reference grades")
-        if (
-            len(view_indexes) != expected_views
-            or len(set(view_indexes)) != expected_views
-        ):
+        if len(view_indexes) != expected_views or set(view_indexes) != set(range(expected_views)):
             raise ValueError(
-                f"profile {profile_id} must contain {expected_views} unique views"
+                f"profile {profile_id} must contain equatorial views "
+                f"{list(range(expected_views))} exactly"
             )
+
+
+def write_calyx_inventory(records: Iterable[dict], output_dir: Path) -> None:
+    """Record unlinked calyx captures without admitting them to grading splits."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+    path = output_dir / "standalone_calyx_inventory.jsonl"
+    with path.open("w", encoding="utf-8") as handle:
+        for record in sorted(records, key=lambda item: str(item["image_path"])):
+            handle.write(json.dumps(record, sort_keys=True) + "\n")
 
 
 def assign_records(
@@ -144,7 +169,9 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
-    records = read_manifest(args.manifest)
+    records, standalone_calyx = partition_cohorts(read_manifest(args.manifest))
+    if not records:
+        raise ValueError("manifest contains no equatorial grading profiles")
     validate_profiles(records)
     assignments = assign_records(
         records,
@@ -154,10 +181,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     assert_no_profile_leakage(assignments)
     write_splits(assignments, args.output_dir)
+    write_calyx_inventory(standalone_calyx, args.output_dir)
     profile_count = len({record["profile_id"] for record in records})
     print(
         f"Wrote {len(records)} images from {profile_count} profiles to {args.output_dir}"
     )
+    if standalone_calyx:
+        print(
+            f"Inventoried {len(standalone_calyx)} unlinked calyx reference image(s); "
+            "they were excluded from grading splits"
+        )
     return 0
 
 

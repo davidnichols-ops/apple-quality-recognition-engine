@@ -18,4 +18,4 @@ rules:
   surface_ratio_g3_pct: 25.0
   ioa_binding_threshold: 0.10
   refinement_margin_pct: 2.0
-  expected_profile_views: 5
+  expected_profile_views: 4

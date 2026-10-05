@@ -1,7 +1,7 @@
 # Four-class feature detector. The neural network observes physical features
 # only; commercial grades are computed by the deterministic policy engine.
 # Reference grades live in capture metadata, not in YOLO labels. Split lists
-# must be generated at profile level so all five views of one apple remain in
+# must be generated at profile level so all four equatorial views of one apple remain in
 # the same partition.
 #
 #   0 apple            — parent mask (caliper size & area denominator)
