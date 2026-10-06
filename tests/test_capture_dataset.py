@@ -9,6 +9,7 @@ from capture_dataset import (
     append_manifest,
     build_filename,
     build_profile_id,
+    equatorial_interval,
     normalize_grade,
     normalize_identifier,
     resolve_capture_inputs,
@@ -26,6 +27,15 @@ def test_normalize_grade_rejects_unknown_grade() -> None:
 
 def test_profile_id_is_stable_within_batch() -> None:
     assert build_profile_id("batch-20260831", 7) == "batch-20260831-00007"
+
+
+def test_four_views_use_quarter_turn_intervals() -> None:
+    assert equatorial_interval(7.5) == pytest.approx(1.875)
+
+
+def test_rotation_period_must_be_positive() -> None:
+    with pytest.raises(ValueError, match="rotation period must be positive"):
+        equatorial_interval(0)
 
 
 def test_identifier_rejects_path_traversal() -> None:

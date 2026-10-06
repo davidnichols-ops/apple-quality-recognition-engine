@@ -18,8 +18,8 @@ from wb_lock import apply_exposure_boost, apply_wb_gains, load_calibration
 
 WIDTH = 1280
 HEIGHT = 720
-EQUATORIAL_INTERVAL_SECONDS = 2.5
 EQUATORIAL_SHOTS = 4
+DEFAULT_ROTATION_PERIOD_SECONDS = 7.5
 WINDOW_NAME = "Raw Feature Harvesting Engine"
 _IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 
@@ -64,6 +64,13 @@ def build_profile_id(batch_id: str, fruit_index: int) -> str:
     if fruit_index < 0:
         raise ValueError("fruit_index must be non-negative")
     return f"{normalize_identifier(batch_id, 'batch_id')}-{fruit_index:05d}"
+
+
+def equatorial_interval(rotation_period_seconds: float) -> float:
+    """Return the quarter-turn interval for the four equatorial captures."""
+    if rotation_period_seconds <= 0:
+        raise ValueError("rotation period must be positive")
+    return rotation_period_seconds / EQUATORIAL_SHOTS
 
 
 def build_filename(
@@ -116,6 +123,15 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         type=float,
         default=1.0,
         help="Software exposure multiplier applied to saved frames (e.g. 1.2 = +20%%). The Arducam exposes no hardware exposure control, so this is applied in software at save time.",
+    )
+    parser.add_argument(
+        "--rotation-period-seconds",
+        type=float,
+        default=DEFAULT_ROTATION_PERIOD_SECONDS,
+        help=(
+            "Measured seconds for one full turntable revolution. Four "
+            "equatorial frames are captured at quarter-turn intervals."
+        ),
     )
     parser.add_argument(
         "--allow-camera-fallback",
@@ -284,10 +300,15 @@ def run_equatorial(args: argparse.Namespace, cv2, cap, camera_index: int, wb_gai
     reference_grade, count = resolve_capture_inputs(args)
     output_dir = Path(args.output_dir)
     manifest_path = output_dir / "capture_manifest.jsonl"
+    interval_seconds = equatorial_interval(args.rotation_period_seconds)
 
     print("[SYSTEM] Equatorial capture initialized (4 views per apple, no calyx)")
     print(f"[INFO] Batch: {args.batch_id} | Grade: {reference_grade}")
     print(f"[INFO] Target: {output_dir} | Resolution: {WIDTH}x{HEIGHT} MJPG")
+    print(
+        f"[INFO] Turntable: {args.rotation_period_seconds:.3f}s/revolution | "
+        f"capture interval: {interval_seconds:.3f}s (90 degrees)"
+    )
 
     try:
         for fruit_index in range(count):
@@ -336,7 +357,7 @@ def run_equatorial(args: argparse.Namespace, cv2, cap, camera_index: int, wb_gai
                     wb_gains=wb_gains,
                 )
                 next_capture_at = sequence_start + (
-                    (view_index + 1) * EQUATORIAL_INTERVAL_SECONDS
+                    (view_index + 1) * interval_seconds
                 )
             print(f"[COMPLETE] {profile_id}: 4/4 equatorial views")
     except KeyboardInterrupt:
