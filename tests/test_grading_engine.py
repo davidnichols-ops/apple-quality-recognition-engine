@@ -7,6 +7,7 @@ from grading_engine import (
     bind_defects_to_parents,
     calculate_ioa,
     grade_apple,
+    load_grading_policy,
     model_names_match_expected_schema,
     union_area,
 )
@@ -185,3 +186,46 @@ def test_refinement_flag_propagates_to_profile() -> None:
         expected_views=5,
     )
     assert result.requires_review
+
+
+def test_zero_defect_profile_review_gate_is_policy_controlled() -> None:
+    clean_views = [decision("G1")] * 5
+
+    assert not aggregate_profile_grades(
+        clean_views,
+        expected_views=5,
+    ).requires_review
+    assert aggregate_profile_grades(
+        clean_views,
+        expected_views=5,
+        review_zero_defect_profiles=True,
+    ).requires_review
+
+
+def test_zero_defect_review_gate_does_not_change_computed_grade() -> None:
+    result = aggregate_profile_grades(
+        [decision("G1")] * 5,
+        expected_views=5,
+        review_zero_defect_profiles=True,
+    )
+
+    assert result.grade == "G1"
+    assert result.is_complete
+
+
+def test_zero_defect_review_gate_does_not_flag_profile_with_surface_evidence() -> None:
+    surface_evidence = GradeDecision("G1", 1, 0, 0.5, "segmentation", False)
+    result = aggregate_profile_grades(
+        [surface_evidence] * 5,
+        expected_views=5,
+        review_zero_defect_profiles=True,
+    )
+
+    assert not result.requires_review
+
+
+def test_candidate_policy_enables_zero_defect_profile_review() -> None:
+    loaded = load_grading_policy("grading_policy.yaml")
+
+    assert loaded.policy_version == "3.1.0-candidate"
+    assert loaded.review_zero_defect_profiles

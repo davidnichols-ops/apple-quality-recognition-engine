@@ -10,7 +10,7 @@
 #       R_surf < surface_ratio_g3_pct   ->  G3   (U.S. Utility / Processing)
 #       R_surf >= surface_ratio_g3_pct  ->  CIDER (sound, fails fresh market)
 facility_id: "DSM_COLD_STORAGE_01"
-policy_version: "3.0.0-candidate"
+policy_version: "3.1.0-candidate"
 
 rules:
   surface_ratio_g1_pct: 2.0
@@ -19,3 +19,7 @@ rules:
   ioa_binding_threshold: 0.10
   refinement_margin_pct: 2.0
   expected_profile_views: 4
+  # Preliminary 2026-10-12 smoke testing found 16.7% surface-defect recall.
+  # Do not automatically certify a four-view profile when the model reports
+  # no defect evidence at all.
+  review_zero_defect_profiles: true

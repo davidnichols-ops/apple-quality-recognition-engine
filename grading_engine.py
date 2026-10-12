@@ -65,10 +65,16 @@ class GradingPolicy:
     ioa_binding_threshold: float
     refinement_margin_pct: float
     expected_profile_views: int
+    review_zero_defect_profiles: bool = False
 
     @classmethod
     def from_mapping(cls, payload: Mapping[str, Any]) -> "GradingPolicy":
         rules = payload["rules"]
+        review_zero_defect_profiles = rules.get(
+            "review_zero_defect_profiles", False
+        )
+        if not isinstance(review_zero_defect_profiles, bool):
+            raise ValueError("review_zero_defect_profiles must be a boolean")
         policy = cls(
             facility_id=str(payload["facility_id"]),
             policy_version=str(payload["policy_version"]),
@@ -78,6 +84,7 @@ class GradingPolicy:
             ioa_binding_threshold=float(rules["ioa_binding_threshold"]),
             refinement_margin_pct=float(rules["refinement_margin_pct"]),
             expected_profile_views=int(rules["expected_profile_views"]),
+            review_zero_defect_profiles=review_zero_defect_profiles,
         )
         policy.validate()
         return policy
@@ -319,6 +326,8 @@ def grade_apple(
 def aggregate_profile_grades(
     decisions: Sequence[GradeDecision],
     expected_views: int,
+    *,
+    review_zero_defect_profiles: bool = False,
 ) -> ProfileGradeDecision:
     if not decisions:
         raise ValueError("at least one view decision is required")
@@ -327,6 +336,11 @@ def aggregate_profile_grades(
     grade = max((decision.grade for decision in decisions), key=_GRADE_RANK.__getitem__)
     observed_views = len(decisions)
     is_complete = observed_views >= expected_views
+    has_zero_defect_evidence = all(
+        decision.surface_defect_count == 0
+        and decision.critical_defect_count == 0
+        for decision in decisions
+    )
     return ProfileGradeDecision(
         grade=grade,
         observed_views=observed_views,
@@ -335,5 +349,6 @@ def aggregate_profile_grades(
         requires_review=(
             not is_complete
             or any(decision.requires_refinement for decision in decisions)
+            or (review_zero_defect_profiles and has_zero_defect_evidence)
         ),
     )

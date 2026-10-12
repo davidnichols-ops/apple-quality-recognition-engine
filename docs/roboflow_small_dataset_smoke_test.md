@@ -80,6 +80,13 @@ grading-pipeline connectivity checks. It fails the deployment smoke test for
 surface-defect sensitivity, profile-isolated evaluation, class-ID compatibility,
 and current policy compatibility.
 
+As a narrow fail-safe, the candidate policy enables
+`review_zero_defect_profiles`. A complete profile with zero surface and zero
+critical detections keeps its provisional calculated grade, but cannot pass
+without review. This prevents the tested model's missed defects from silently
+certifying G1 fruit. The switch can be disabled after a replacement model
+passes held-out sensitivity testing.
+
 Before retraining, assign every four-view apple profile to exactly one split.
 After retraining, repeat the same smoke test on a physically characterized,
 profile-held-out trial set. Update the deterministic critical-defect policy

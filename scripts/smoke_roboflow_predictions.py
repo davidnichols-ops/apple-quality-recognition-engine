@@ -121,7 +121,11 @@ def main() -> int:
 
     profile_rows = []
     for profile_id, decisions in sorted(profiles.items()):
-        aggregate = aggregate_profile_grades(decisions, policy.expected_profile_views)
+        aggregate = aggregate_profile_grades(
+            decisions,
+            policy.expected_profile_views,
+            review_zero_defect_profiles=policy.review_zero_defect_profiles,
+        )
         profile_rows.append({"profile_id": profile_id, **asdict(aggregate),
                              "splits": sorted(split_by_profile[profile_id])})
 
