@@ -1,0 +1,358 @@
+[
+  {
+    "profile_id": "crimson-crisp-lot-01-00000",
+    "grade": "DISCARD",
+    "observed_views": 4,
+    "expected_views": 4,
+    "is_complete": true,
+    "requires_review": false,
+    "splits": [
+      "train",
+      "valid"
+    ]
+  },
+  {
+    "profile_id": "crimson-crisp-lot-01-00001",
+    "grade": "G1",
+    "observed_views": 4,
+    "expected_views": 4,
+    "is_complete": true,
+    "requires_review": false,
+    "splits": [
+      "train",
+      "valid"
+    ]
+  },
+  {
+    "profile_id": "crimson-crisp-lot-01-00002",
+    "grade": "G2",
+    "observed_views": 4,
+    "expected_views": 4,
+    "is_complete": true,
+    "requires_review": false,
+    "splits": [
+      "test",
+      "train",
+      "valid"
+    ]
+  },
+  {
+    "profile_id": "crimson-crisp-lot-01-00003",
+    "grade": "DISCARD",
+    "observed_views": 4,
+    "expected_views": 4,
+    "is_complete": true,
+    "requires_review": false,
+    "splits": [
+      "test",
+      "train"
+    ]
+  },
+  {
+    "profile_id": "crimson-crisp-lot-01-00004",
+    "grade": "G1",
+    "observed_views": 4,
+    "expected_views": 4,
+    "is_complete": true,
+    "requires_review": false,
+    "splits": [
+      "train",
+      "valid"
+    ]
+  },
+  {
+    "profile_id": "crimson-crisp-lot-01-00005",
+    "grade": "G1",
+    "observed_views": 4,
+    "expected_views": 4,
+    "is_complete": true,
+    "requires_review": false,
+    "splits": [
+      "train",
+      "valid"
+    ]
+  },
+  {
+    "profile_id": "crimson-crisp-lot-01-00006",
+    "grade": "G1",
+    "observed_views": 4,
+    "expected_views": 4,
+    "is_complete": true,
+    "requires_review": false,
+    "splits": [
+      "train"
+    ]
+  },
+  {
+    "profile_id": "crimson-crisp-lot-01-00007",
+    "grade": "DISCARD",
+    "observed_views": 4,
+    "expected_views": 4,
+    "is_complete": true,
+    "requires_review": false,
+    "splits": [
+      "test",
+      "train"
+    ]
+  },
+  {
+    "profile_id": "crimson-crisp-lot-01-00008",
+    "grade": "G1",
+    "observed_views": 4,
+    "expected_views": 4,
+    "is_complete": true,
+    "requires_review": false,
+    "splits": [
+      "train"
+    ]
+  },
+  {
+    "profile_id": "crimson-crisp-lot-01-00009",
+    "grade": "G1",
+    "observed_views": 4,
+    "expected_views": 4,
+    "is_complete": true,
+    "requires_review": false,
+    "splits": [
+      "test",
+      "valid"
+    ]
+  },
+  {
+    "profile_id": "crimson-crisp-lot-01-00010",
+    "grade": "G1",
+    "observed_views": 4,
+    "expected_views": 4,
+    "is_complete": true,
+    "requires_review": false,
+    "splits": [
+      "train"
+    ]
+  },
+  {
+    "profile_id": "crimson-crisp-lot-01-00011",
+    "grade": "G1",
+    "observed_views": 4,
+    "expected_views": 4,
+    "is_complete": true,
+    "requires_review": false,
+    "splits": [
+      "train",
+      "valid"
+    ]
+  },
+  {
+    "profile_id": "crimson-crisp-lot-01-00012",
+    "grade": "G1",
+    "observed_views": 4,
+    "expected_views": 4,
+    "is_complete": true,
+    "requires_review": false,
+    "splits": [
+      "train",
+      "valid"
+    ]
+  },
+  {
+    "profile_id": "crimson-crisp-lot-01-00013",
+    "grade": "G1",
+    "observed_views": 4,
+    "expected_views": 4,
+    "is_complete": true,
+    "requires_review": false,
+    "splits": [
+      "test",
+      "train"
+    ]
+  },
+  {
+    "profile_id": "crimson-crisp-lot-01-00014",
+    "grade": "G1",
+    "observed_views": 4,
+    "expected_views": 4,
+    "is_complete": true,
+    "requires_review": false,
+    "splits": [
+      "train",
+      "valid"
+    ]
+  },
+  {
+    "profile_id": "crimson-crisp-lot-01-00015",
+    "grade": "G1",
+    "observed_views": 4,
+    "expected_views": 4,
+    "is_complete": true,
+    "requires_review": false,
+    "splits": [
+      "test",
+      "train"
+    ]
+  },
+  {
+    "profile_id": "crimson-crisp-lot-01-00016",
+    "grade": "DISCARD",
+    "observed_views": 4,
+    "expected_views": 4,
+    "is_complete": true,
+    "requires_review": false,
+    "splits": [
+      "test",
+      "train",
+      "valid"
+    ]
+  },
+  {
+    "profile_id": "crimson-crisp-lot-01-00017",
+    "grade": "G1",
+    "observed_views": 4,
+    "expected_views": 4,
+    "is_complete": true,
+    "requires_review": false,
+    "splits": [
+      "train"
+    ]
+  },
+  {
+    "profile_id": "crimson-crisp-lot-01-00018",
+    "grade": "G1",
+    "observed_views": 4,
+    "expected_views": 4,
+    "is_complete": true,
+    "requires_review": false,
+    "splits": [
+      "train"
+    ]
+  },
+  {
+    "profile_id": "crimson-crisp-lot-01-00019",
+    "grade": "G1",
+    "observed_views": 4,
+    "expected_views": 4,
+    "is_complete": true,
+    "requires_review": false,
+    "splits": [
+      "train"
+    ]
+  },
+  {
+    "profile_id": "crimson-crisp-lot-01-00020",
+    "grade": "G1",
+    "observed_views": 4,
+    "expected_views": 4,
+    "is_complete": true,
+    "requires_review": false,
+    "splits": [
+      "train"
+    ]
+  },
+  {
+    "profile_id": "crimson-crisp-lot-01-00021",
+    "grade": "G1",
+    "observed_views": 4,
+    "expected_views": 4,
+    "is_complete": true,
+    "requires_review": false,
+    "splits": [
+      "train"
+    ]
+  },
+  {
+    "profile_id": "crimson-crisp-lot-01-00022",
+    "grade": "G1",
+    "observed_views": 4,
+    "expected_views": 4,
+    "is_complete": true,
+    "requires_review": false,
+    "splits": [
+      "train",
+      "valid"
+    ]
+  },
+  {
+    "profile_id": "crimson-crisp-lot-01-00023",
+    "grade": "G1",
+    "observed_views": 4,
+    "expected_views": 4,
+    "is_complete": true,
+    "requires_review": false,
+    "splits": [
+      "test",
+      "train",
+      "valid"
+    ]
+  },
+  {
+    "profile_id": "crimson-crisp-lot-01-00024",
+    "grade": "DISCARD",
+    "observed_views": 4,
+    "expected_views": 4,
+    "is_complete": true,
+    "requires_review": false,
+    "splits": [
+      "test",
+      "train"
+    ]
+  },
+  {
+    "profile_id": "crimson-crisp-lot-01-00025",
+    "grade": "G1",
+    "observed_views": 4,
+    "expected_views": 4,
+    "is_complete": true,
+    "requires_review": false,
+    "splits": [
+      "train",
+      "valid"
+    ]
+  },
+  {
+    "profile_id": "crimson-crisp-lot-01-00026",
+    "grade": "G1",
+    "observed_views": 4,
+    "expected_views": 4,
+    "is_complete": true,
+    "requires_review": false,
+    "splits": [
+      "test",
+      "train",
+      "valid"
+    ]
+  },
+  {
+    "profile_id": "crimson-crisp-lot-01-00027",
+    "grade": "DISCARD",
+    "observed_views": 4,
+    "expected_views": 4,
+    "is_complete": true,
+    "requires_review": false,
+    "splits": [
+      "train",
+      "valid"
+    ]
+  },
+  {
+    "profile_id": "crimson-crisp-lot-01-00028",
+    "grade": "G1",
+    "observed_views": 4,
+    "expected_views": 4,
+    "is_complete": true,
+    "requires_review": false,
+    "splits": [
+      "train",
+      "valid"
+    ]
+  },
+  {
+    "profile_id": "crimson-crisp-lot-01-00029",
+    "grade": "G1",
+    "observed_views": 4,
+    "expected_views": 4,
+    "is_complete": true,
+    "requires_review": false,
+    "splits": [
+      "train",
+      "valid"
+    ]
+  }
+]

@@ -1,5 +1,7 @@
 # Roboflow Small-Dataset Smoke Test
 
+> Historical October test. See [retirement closeout](RETIREMENT.md) for final interpretation and [preserved evidence](../research/closeout/README.md). The adapter used mask coverage and did not exercise live camera inference. Reported mAP is from an evaluation labeled object-detection-like; no mask-IoU result was available.
+
 Date: 2026-10-12
 
 ## Scope
@@ -69,7 +71,7 @@ the latest owner rule says two critical defects send an apple to CIDER.
 3. Surface-defect recall is 16.7% on the leaked 13-image test split. The model
    therefore fails the grading-readiness gate even before a clean profile-level
    evaluation.
-4. Mask localization remains weak: test mAP50-95 is 0.185 for critical
+4. Reported localization remains weak: test mAP50-95 is 0.185 for critical
    defects, 0.093 for surface defects, and 0.183 for stem/calyx. Roboflow did
    not report mIoU for this evaluation.
 

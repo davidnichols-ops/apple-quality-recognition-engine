@@ -1,0 +1,962 @@
+[
+  {
+    "file": "images/raw_20261006_001225_342010_crimson-crisp-lot-01-00000_cider_equatorial_view_0.jpg",
+    "sha256": "13f13743359738c00caa8541a47f0c6e29d386cfbdaccf4f7890194225086b5a",
+    "bytes": 147006,
+    "profile_id": "crimson-crisp-lot-01-00000",
+    "view_index": 0,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001227_820161_crimson-crisp-lot-01-00000_cider_equatorial_view_1.jpg",
+    "sha256": "42a9a7897f9b531056eb22a7d01d4a26bc8119ef314082ec6e3a7540cb937510",
+    "bytes": 142979,
+    "profile_id": "crimson-crisp-lot-01-00000",
+    "view_index": 1,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001230_326857_crimson-crisp-lot-01-00000_cider_equatorial_view_2.jpg",
+    "sha256": "d850c9ab3b9ab28422edf51f8b679c1cf77c74d1f450b0e8c66d95c565def400",
+    "bytes": 153289,
+    "profile_id": "crimson-crisp-lot-01-00000",
+    "view_index": 2,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001232_838878_crimson-crisp-lot-01-00000_cider_equatorial_view_3.jpg",
+    "sha256": "706ee401900cc0babe9b09e44de9dc7eb9a829057b5f05305eea9221957c3004",
+    "bytes": 146224,
+    "profile_id": "crimson-crisp-lot-01-00000",
+    "view_index": 3,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001243_285397_crimson-crisp-lot-01-00001_cider_equatorial_view_0.jpg",
+    "sha256": "4a8ae549e9a0f750ced083132faa94ed8db9dc57ab5cf6e0fa573fab8d7f8ab8",
+    "bytes": 145116,
+    "profile_id": "crimson-crisp-lot-01-00001",
+    "view_index": 0,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001245_774967_crimson-crisp-lot-01-00001_cider_equatorial_view_1.jpg",
+    "sha256": "52692d3d1c68f87ebc57e324f7a8456aa1a3441e12b77b4162991360f58157d0",
+    "bytes": 141076,
+    "profile_id": "crimson-crisp-lot-01-00001",
+    "view_index": 1,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001248_270280_crimson-crisp-lot-01-00001_cider_equatorial_view_2.jpg",
+    "sha256": "0a95c165b8c383b8c5dbe9d4679372740cf2d1e9c6c9e3ced12812c3ccfcb719",
+    "bytes": 145082,
+    "profile_id": "crimson-crisp-lot-01-00001",
+    "view_index": 2,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001250_782182_crimson-crisp-lot-01-00001_cider_equatorial_view_3.jpg",
+    "sha256": "2fbd61b24a00011cd400a6da49e3c01598a48c96c200ba55b554b9c49605fe51",
+    "bytes": 144034,
+    "profile_id": "crimson-crisp-lot-01-00001",
+    "view_index": 3,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001259_269782_crimson-crisp-lot-01-00002_cider_equatorial_view_0.jpg",
+    "sha256": "82438adb66488d61fd41b67a5aab9fc559e9dcb6ba3cc269f316859d6fb99bd0",
+    "bytes": 133716,
+    "profile_id": "crimson-crisp-lot-01-00002",
+    "view_index": 0,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001301_766542_crimson-crisp-lot-01-00002_cider_equatorial_view_1.jpg",
+    "sha256": "40a4c23909dfcb804eb243fe10bf8ccefd12431416417c8395b82e3db5f2b28e",
+    "bytes": 134916,
+    "profile_id": "crimson-crisp-lot-01-00002",
+    "view_index": 1,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001304_255126_crimson-crisp-lot-01-00002_cider_equatorial_view_2.jpg",
+    "sha256": "abe08b5478338ac3e7d93c5f6449df824d5a1a441ab84d1394a36b6ab117ac2c",
+    "bytes": 142756,
+    "profile_id": "crimson-crisp-lot-01-00002",
+    "view_index": 2,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001306_759088_crimson-crisp-lot-01-00002_cider_equatorial_view_3.jpg",
+    "sha256": "8e1747b6217c46e50724b91f3b63849dcee7192987a873585c08c561b77fd32b",
+    "bytes": 141003,
+    "profile_id": "crimson-crisp-lot-01-00002",
+    "view_index": 3,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001316_422932_crimson-crisp-lot-01-00003_cider_equatorial_view_0.jpg",
+    "sha256": "dc467e1e13894898f5ae661c097cefb4b806d08c9d24dcca5fb90ab7a8afe75e",
+    "bytes": 142106,
+    "profile_id": "crimson-crisp-lot-01-00003",
+    "view_index": 0,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001318_910229_crimson-crisp-lot-01-00003_cider_equatorial_view_1.jpg",
+    "sha256": "8ae7821a7ece5ac9fddc96ce6b39f85d1fbe4dc08df3183e056dbeb1d90baffa",
+    "bytes": 141640,
+    "profile_id": "crimson-crisp-lot-01-00003",
+    "view_index": 1,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001321_404942_crimson-crisp-lot-01-00003_cider_equatorial_view_2.jpg",
+    "sha256": "dfa2ca97ef38b350945eca0495f5b813815b5c344ee52e8a28323b78d0b0fdbe",
+    "bytes": 156945,
+    "profile_id": "crimson-crisp-lot-01-00003",
+    "view_index": 2,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001323_917599_crimson-crisp-lot-01-00003_cider_equatorial_view_3.jpg",
+    "sha256": "486310b7cabc2ff9bee1662ebdfdb85207a7e55f63c2fe41aab88924c7319bb9",
+    "bytes": 157790,
+    "profile_id": "crimson-crisp-lot-01-00003",
+    "view_index": 3,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001328_581802_crimson-crisp-lot-01-00004_cider_equatorial_view_0.jpg",
+    "sha256": "c23ffee1970e12d2fc7c47f34768ab3f48d160b0afbcd2b38bd2cec9ea728c44",
+    "bytes": 147384,
+    "profile_id": "crimson-crisp-lot-01-00004",
+    "view_index": 0,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001331_071910_crimson-crisp-lot-01-00004_cider_equatorial_view_1.jpg",
+    "sha256": "58aa3cc62f8d4175b2738aaa4b2daa7514d5770027df691801f29fe40a28ea91",
+    "bytes": 146659,
+    "profile_id": "crimson-crisp-lot-01-00004",
+    "view_index": 1,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001333_564989_crimson-crisp-lot-01-00004_cider_equatorial_view_2.jpg",
+    "sha256": "2e584d3a2bad701741acbd8ddd030bfcd7a0e2d913d8b10b4c5fe8f030d45608",
+    "bytes": 149307,
+    "profile_id": "crimson-crisp-lot-01-00004",
+    "view_index": 2,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001336_078537_crimson-crisp-lot-01-00004_cider_equatorial_view_3.jpg",
+    "sha256": "ac2c1e88f1b1095967b81c83f7c05cf4ac120c1a4210a5c5c61f3fa9646bd44f",
+    "bytes": 147166,
+    "profile_id": "crimson-crisp-lot-01-00004",
+    "view_index": 3,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001348_253585_crimson-crisp-lot-01-00005_cider_equatorial_view_0.jpg",
+    "sha256": "82f56ec3a0a0cf0b4dbf8487c0a5493be41024b9d067e403dcbc6a487935912b",
+    "bytes": 154949,
+    "profile_id": "crimson-crisp-lot-01-00005",
+    "view_index": 0,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001350_758819_crimson-crisp-lot-01-00005_cider_equatorial_view_1.jpg",
+    "sha256": "cc61fb892e496d558596b441755334aab4bf03b00ac79f9adcd8b681afd72314",
+    "bytes": 158358,
+    "profile_id": "crimson-crisp-lot-01-00005",
+    "view_index": 1,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001353_239275_crimson-crisp-lot-01-00005_cider_equatorial_view_2.jpg",
+    "sha256": "ee3a11b60dff133e36a748883857758a8351ee56b81c76db4f9afc82a7f70db7",
+    "bytes": 150514,
+    "profile_id": "crimson-crisp-lot-01-00005",
+    "view_index": 2,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001355_751342_crimson-crisp-lot-01-00005_cider_equatorial_view_3.jpg",
+    "sha256": "470026acfc2a6b73c3a5a010ca2ff5b889aee4f9c0a7a31fc59ad4c9cb41f46d",
+    "bytes": 148831,
+    "profile_id": "crimson-crisp-lot-01-00005",
+    "view_index": 3,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001400_750863_crimson-crisp-lot-01-00006_cider_equatorial_view_0.jpg",
+    "sha256": "b634f2069dae7b619b328df6f5bfd0d72e3d811272517bf2e6cc7341d78b6579",
+    "bytes": 154880,
+    "profile_id": "crimson-crisp-lot-01-00006",
+    "view_index": 0,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001403_238756_crimson-crisp-lot-01-00006_cider_equatorial_view_1.jpg",
+    "sha256": "20d73c17a054e97a95a43e625b3842333562fdece65f20d65083688f2063828b",
+    "bytes": 152052,
+    "profile_id": "crimson-crisp-lot-01-00006",
+    "view_index": 1,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001405_732623_crimson-crisp-lot-01-00006_cider_equatorial_view_2.jpg",
+    "sha256": "4e544b7ec8559992d5e5ef183a5a1f27cdea73647779fb49046e7bddabaf3d79",
+    "bytes": 158132,
+    "profile_id": "crimson-crisp-lot-01-00006",
+    "view_index": 2,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001408_245280_crimson-crisp-lot-01-00006_cider_equatorial_view_3.jpg",
+    "sha256": "3d07636e42841258a4b93e0128db5eda58278d1f7302e98045e6cf340fcfda2a",
+    "bytes": 163865,
+    "profile_id": "crimson-crisp-lot-01-00006",
+    "view_index": 3,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001413_213755_crimson-crisp-lot-01-00007_cider_equatorial_view_0.jpg",
+    "sha256": "f40ab4cb071ae315697498801c14d7b63371c48b61724df7da5066ec1a18701f",
+    "bytes": 142328,
+    "profile_id": "crimson-crisp-lot-01-00007",
+    "view_index": 0,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001415_719397_crimson-crisp-lot-01-00007_cider_equatorial_view_1.jpg",
+    "sha256": "3b78694a52d46e9dd8261142babb6f089cfc95af0ada94bcbdc18a8f26f6f16b",
+    "bytes": 134373,
+    "profile_id": "crimson-crisp-lot-01-00007",
+    "view_index": 1,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001418_197678_crimson-crisp-lot-01-00007_cider_equatorial_view_2.jpg",
+    "sha256": "3610a305d813193f9803d6280cd73e27d2b3c4079eb80b4aca80c238c3e684a8",
+    "bytes": 138923,
+    "profile_id": "crimson-crisp-lot-01-00007",
+    "view_index": 2,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001420_718455_crimson-crisp-lot-01-00007_cider_equatorial_view_3.jpg",
+    "sha256": "4350fe437df2bfc56db2916e214a5051188331ebeabcd6bd4047dc326b4ba40d",
+    "bytes": 144020,
+    "profile_id": "crimson-crisp-lot-01-00007",
+    "view_index": 3,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001426_340557_crimson-crisp-lot-01-00008_cider_equatorial_view_0.jpg",
+    "sha256": "6a6b809acfdf16ffc22a5e7ee26ebe6f9f0d2d47d31d47c8352e4b99bc2052af",
+    "bytes": 147987,
+    "profile_id": "crimson-crisp-lot-01-00008",
+    "view_index": 0,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001428_823102_crimson-crisp-lot-01-00008_cider_equatorial_view_1.jpg",
+    "sha256": "5eb2697a52bb06f55d8630bbc31672aca3830e4f7908f5800f15bb06904636fb",
+    "bytes": 132920,
+    "profile_id": "crimson-crisp-lot-01-00008",
+    "view_index": 1,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001431_326530_crimson-crisp-lot-01-00008_cider_equatorial_view_2.jpg",
+    "sha256": "032d8e8a0cbccf8674e4e7ef13fb9323459faa5e26eabec16faf4fb02b1d63a5",
+    "bytes": 145605,
+    "profile_id": "crimson-crisp-lot-01-00008",
+    "view_index": 2,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001433_839197_crimson-crisp-lot-01-00008_cider_equatorial_view_3.jpg",
+    "sha256": "f0ee137d5de2da1a15a84ab850ef6498fab3232576b4bcdd310d2e2dd8b7bba6",
+    "bytes": 151344,
+    "profile_id": "crimson-crisp-lot-01-00008",
+    "view_index": 3,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001440_845874_crimson-crisp-lot-01-00009_cider_equatorial_view_0.jpg",
+    "sha256": "7cb73dad2d0ee565304cae849164fe14be51d60124df4cc5e6570c9aa66454f0",
+    "bytes": 131140,
+    "profile_id": "crimson-crisp-lot-01-00009",
+    "view_index": 0,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001443_342150_crimson-crisp-lot-01-00009_cider_equatorial_view_1.jpg",
+    "sha256": "a7cd5a3fcbb2a5947720951587c60d8382c04f555e4daf68cf692dc20200927f",
+    "bytes": 132291,
+    "profile_id": "crimson-crisp-lot-01-00009",
+    "view_index": 1,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001445_829901_crimson-crisp-lot-01-00009_cider_equatorial_view_2.jpg",
+    "sha256": "c016a39b99cccf16ad81af82be2b55a9b0080d388daa7d9089c0ee06a5dc564b",
+    "bytes": 130332,
+    "profile_id": "crimson-crisp-lot-01-00009",
+    "view_index": 2,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001448_351505_crimson-crisp-lot-01-00009_cider_equatorial_view_3.jpg",
+    "sha256": "2d9dfc62cb8f9ce8f51ad04248f753a196c89bd84e139a33055f425dc1c2aef1",
+    "bytes": 135596,
+    "profile_id": "crimson-crisp-lot-01-00009",
+    "view_index": 3,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001456_686765_crimson-crisp-lot-01-00010_cider_equatorial_view_0.jpg",
+    "sha256": "79db8be50a60f2110e0f8497ee822ae314e357d1cfe7585bdcd7477694655a56",
+    "bytes": 166882,
+    "profile_id": "crimson-crisp-lot-01-00010",
+    "view_index": 0,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001459_168222_crimson-crisp-lot-01-00010_cider_equatorial_view_1.jpg",
+    "sha256": "d858ed938c9ce0a5f0e738a92994b8d60c5556a35e803b980c2d469b0723933b",
+    "bytes": 158445,
+    "profile_id": "crimson-crisp-lot-01-00010",
+    "view_index": 1,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001501_671379_crimson-crisp-lot-01-00010_cider_equatorial_view_2.jpg",
+    "sha256": "99212c2d505b14d04cebe520c555392dec512f97e17ca6fda6b9f1be87f60994",
+    "bytes": 153907,
+    "profile_id": "crimson-crisp-lot-01-00010",
+    "view_index": 2,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001504_182943_crimson-crisp-lot-01-00010_cider_equatorial_view_3.jpg",
+    "sha256": "8d8475bf4a424b44c1752eaefec4a133d06c8f29c62e2efabe180c0215e5a7ff",
+    "bytes": 164587,
+    "profile_id": "crimson-crisp-lot-01-00010",
+    "view_index": 3,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001509_661646_crimson-crisp-lot-01-00011_cider_equatorial_view_0.jpg",
+    "sha256": "59a4c663cc69aaf4ee8c526581dd6d1ad0c606d9a66d9efea20ef0ac22934dbe",
+    "bytes": 139341,
+    "profile_id": "crimson-crisp-lot-01-00011",
+    "view_index": 0,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001512_167513_crimson-crisp-lot-01-00011_cider_equatorial_view_1.jpg",
+    "sha256": "27666d02505d7d16f216125dde58dd11b059c4cc2b0f07ae2d1a3a56332969d3",
+    "bytes": 137310,
+    "profile_id": "crimson-crisp-lot-01-00011",
+    "view_index": 1,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001514_646490_crimson-crisp-lot-01-00011_cider_equatorial_view_2.jpg",
+    "sha256": "29ef3a5bd4b2ba48054a4ea41ec35033724c0628d5d2b0616ff4a0eb3a8ebbf4",
+    "bytes": 137505,
+    "profile_id": "crimson-crisp-lot-01-00011",
+    "view_index": 2,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001517_158536_crimson-crisp-lot-01-00011_cider_equatorial_view_3.jpg",
+    "sha256": "68189904a64883b31824527db4e4ada29cfa6ae8e765cd61f85e51fb13d3aa8c",
+    "bytes": 138454,
+    "profile_id": "crimson-crisp-lot-01-00011",
+    "view_index": 3,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001522_046513_crimson-crisp-lot-01-00012_cider_equatorial_view_0.jpg",
+    "sha256": "06ed7ca3d15a1050e940ccd72be7b09e5fc3f9d38de2f165bfd04b6d6bd6f271",
+    "bytes": 135396,
+    "profile_id": "crimson-crisp-lot-01-00012",
+    "view_index": 0,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001524_542480_crimson-crisp-lot-01-00012_cider_equatorial_view_1.jpg",
+    "sha256": "d03ffd9aefb6907062deea642cea86b5aa9ddf1087f06d5a3b3b2e13d3babef5",
+    "bytes": 132645,
+    "profile_id": "crimson-crisp-lot-01-00012",
+    "view_index": 1,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001527_039263_crimson-crisp-lot-01-00012_cider_equatorial_view_2.jpg",
+    "sha256": "df4a3260ee05727303334212f21bdc540108a4a7f92dfbe6eae04e32b771a9e5",
+    "bytes": 136070,
+    "profile_id": "crimson-crisp-lot-01-00012",
+    "view_index": 2,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001529_533878_crimson-crisp-lot-01-00012_cider_equatorial_view_3.jpg",
+    "sha256": "64818bdd8c1c492ec60ab153a9b0aa981c54552ae33f60f746b90ab5971d8a21",
+    "bytes": 143245,
+    "profile_id": "crimson-crisp-lot-01-00012",
+    "view_index": 3,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001540_838569_crimson-crisp-lot-01-00013_cider_equatorial_view_0.jpg",
+    "sha256": "5baf7d982c1c2b888d0195c5a7ef2f22e1694d20fa531dd807367ed622ff6432",
+    "bytes": 141420,
+    "profile_id": "crimson-crisp-lot-01-00013",
+    "view_index": 0,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001543_343248_crimson-crisp-lot-01-00013_cider_equatorial_view_1.jpg",
+    "sha256": "c9ca623d26a14e67cb6b518bc0eaa923c23a7da15f966eb4ccf3de114b193dd3",
+    "bytes": 157569,
+    "profile_id": "crimson-crisp-lot-01-00013",
+    "view_index": 1,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001545_831342_crimson-crisp-lot-01-00013_cider_equatorial_view_2.jpg",
+    "sha256": "531e6e326a767574fdd2706a661b983fca9710d74561b02f4ba4a52aebffbf3a",
+    "bytes": 163862,
+    "profile_id": "crimson-crisp-lot-01-00013",
+    "view_index": 2,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001548_334288_crimson-crisp-lot-01-00013_cider_equatorial_view_3.jpg",
+    "sha256": "cfb584970ee829c633135a0924d118b440c02e9bbebbacc3fd2b8f1ba4f0ba15",
+    "bytes": 147851,
+    "profile_id": "crimson-crisp-lot-01-00013",
+    "view_index": 3,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001555_918218_crimson-crisp-lot-01-00014_cider_equatorial_view_0.jpg",
+    "sha256": "ea2651982894a48272b0a408430366df28c822e70058ee37885dba88ebaaf1aa",
+    "bytes": 155706,
+    "profile_id": "crimson-crisp-lot-01-00014",
+    "view_index": 0,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001558_423187_crimson-crisp-lot-01-00014_cider_equatorial_view_1.jpg",
+    "sha256": "5314b5f2682921c2fa77d02abcc61f9f1b6ee4137f7334933f15b9f9a86bf46a",
+    "bytes": 150401,
+    "profile_id": "crimson-crisp-lot-01-00014",
+    "view_index": 1,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001600_918795_crimson-crisp-lot-01-00014_cider_equatorial_view_2.jpg",
+    "sha256": "1c08d9ffa82a958a680618d4e36ad4365f04c6dcfa88e14ca22da1767de59229",
+    "bytes": 153134,
+    "profile_id": "crimson-crisp-lot-01-00014",
+    "view_index": 2,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001603_406402_crimson-crisp-lot-01-00014_cider_equatorial_view_3.jpg",
+    "sha256": "801dbf65a85f833e06399c38f059539f63fafe040081b18f0910ace1cfda502b",
+    "bytes": 162089,
+    "profile_id": "crimson-crisp-lot-01-00014",
+    "view_index": 3,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001608_077889_crimson-crisp-lot-01-00015_cider_equatorial_view_0.jpg",
+    "sha256": "4ee01114388c42f4de086e73629d37367f1815bce0bd00435e3220061883c5dd",
+    "bytes": 146546,
+    "profile_id": "crimson-crisp-lot-01-00015",
+    "view_index": 0,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001610_582347_crimson-crisp-lot-01-00015_cider_equatorial_view_1.jpg",
+    "sha256": "451d68afc0a98dbff36efc898afe5fbcfe087ad1dedea1ebcd71088d17db5f3d",
+    "bytes": 142547,
+    "profile_id": "crimson-crisp-lot-01-00015",
+    "view_index": 1,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001613_061915_crimson-crisp-lot-01-00015_cider_equatorial_view_2.jpg",
+    "sha256": "7e095381f9b24adceb40e52e7bb05eb9b210f55f111054a64b4ab8eef3b8598a",
+    "bytes": 147020,
+    "profile_id": "crimson-crisp-lot-01-00015",
+    "view_index": 2,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001615_565517_crimson-crisp-lot-01-00015_cider_equatorial_view_3.jpg",
+    "sha256": "00e368083e8c5de509c78ceedfe71632adfe2278d79dc5ee524ca6f7320c3308",
+    "bytes": 149938,
+    "profile_id": "crimson-crisp-lot-01-00015",
+    "view_index": 3,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001632_462965_crimson-crisp-lot-01-00016_cider_equatorial_view_0.jpg",
+    "sha256": "a7282776e18b593058187ffa6dfe2b4473bfa253a1b2f9056d6b27269fc17a8b",
+    "bytes": 149819,
+    "profile_id": "crimson-crisp-lot-01-00016",
+    "view_index": 0,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001634_951460_crimson-crisp-lot-01-00016_cider_equatorial_view_1.jpg",
+    "sha256": "5b378bfa98e519d37bc3501daa7f4e09a0288431e360e817e727b55524710491",
+    "bytes": 157662,
+    "profile_id": "crimson-crisp-lot-01-00016",
+    "view_index": 1,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001637_461909_crimson-crisp-lot-01-00016_cider_equatorial_view_2.jpg",
+    "sha256": "d2f7d4efe53ad5a6c75cbc725832049b23ded24d9e04f0702925f3782d3c9b96",
+    "bytes": 169825,
+    "profile_id": "crimson-crisp-lot-01-00016",
+    "view_index": 2,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001639_950317_crimson-crisp-lot-01-00016_cider_equatorial_view_3.jpg",
+    "sha256": "3ed93f83f4808e75c9eeede3a2da0fbf8b4a08a9cba6d0d547eb48b7b3a1769c",
+    "bytes": 148088,
+    "profile_id": "crimson-crisp-lot-01-00016",
+    "view_index": 3,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001644_470738_crimson-crisp-lot-01-00017_cider_equatorial_view_0.jpg",
+    "sha256": "7f5e8a81128cff3b39ff6e381bffa724389241e3c4c3550a28a640a440118ab6",
+    "bytes": 144179,
+    "profile_id": "crimson-crisp-lot-01-00017",
+    "view_index": 0,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001646_974732_crimson-crisp-lot-01-00017_cider_equatorial_view_1.jpg",
+    "sha256": "e005ea8fb9db4f72d721fef358738da1964193d2c9e286220f9347e0a2153630",
+    "bytes": 147883,
+    "profile_id": "crimson-crisp-lot-01-00017",
+    "view_index": 1,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001649_455899_crimson-crisp-lot-01-00017_cider_equatorial_view_2.jpg",
+    "sha256": "25cdc09d82b47b2671e8be80f4630d7397d3c1e40da55628240ea2744fbcb531",
+    "bytes": 152238,
+    "profile_id": "crimson-crisp-lot-01-00017",
+    "view_index": 2,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001651_965898_crimson-crisp-lot-01-00017_cider_equatorial_view_3.jpg",
+    "sha256": "243f54e367026e4f421f36d6250c7d9dbee704bbac6ecdd95b6a3da44bf4f95d",
+    "bytes": 150569,
+    "profile_id": "crimson-crisp-lot-01-00017",
+    "view_index": 3,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001657_446182_crimson-crisp-lot-01-00018_cider_equatorial_view_0.jpg",
+    "sha256": "08b147223bfc5ab9c153ce4f449649d6df24a6817c15f8a62e732586f6b5d069",
+    "bytes": 140110,
+    "profile_id": "crimson-crisp-lot-01-00018",
+    "view_index": 0,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001659_942727_crimson-crisp-lot-01-00018_cider_equatorial_view_1.jpg",
+    "sha256": "d00c0dfb602f37f185038a518af1d46eff0bdf676838f507e103c013a8d26901",
+    "bytes": 136309,
+    "profile_id": "crimson-crisp-lot-01-00018",
+    "view_index": 1,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001702_430127_crimson-crisp-lot-01-00018_cider_equatorial_view_2.jpg",
+    "sha256": "1c55ae4a0115139739310fb1813a1ec2ff2ff01bed16d8e4b76b65a46b4501c9",
+    "bytes": 124993,
+    "profile_id": "crimson-crisp-lot-01-00018",
+    "view_index": 2,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001704_942365_crimson-crisp-lot-01-00018_cider_equatorial_view_3.jpg",
+    "sha256": "a9949478b7b2e1861a5f423a16c1a8f777b6db2e01290a26a88ab7cfb119fb79",
+    "bytes": 140847,
+    "profile_id": "crimson-crisp-lot-01-00018",
+    "view_index": 3,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001712_590807_crimson-crisp-lot-01-00019_cider_equatorial_view_0.jpg",
+    "sha256": "45a55fa6ea6852a2250219f2d69888e78abdbe0d29e2258b216eaa476c3e2f18",
+    "bytes": 153593,
+    "profile_id": "crimson-crisp-lot-01-00019",
+    "view_index": 0,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001715_094824_crimson-crisp-lot-01-00019_cider_equatorial_view_1.jpg",
+    "sha256": "67010b8dd2884dd899e3667f5f4074a82e293b5488d5ec62ccc9b6ad06b24463",
+    "bytes": 154978,
+    "profile_id": "crimson-crisp-lot-01-00019",
+    "view_index": 1,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001717_575492_crimson-crisp-lot-01-00019_cider_equatorial_view_2.jpg",
+    "sha256": "fd67e6f6af9d69de82cd9bc65d5b19c0ad974f3f293b3b62a82b2d1d52974d79",
+    "bytes": 150554,
+    "profile_id": "crimson-crisp-lot-01-00019",
+    "view_index": 2,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001720_076888_crimson-crisp-lot-01-00019_cider_equatorial_view_3.jpg",
+    "sha256": "0f82a68add5659fc58333a57cb312dcb16bda8ce17fc5733fe2a435caa1c25c7",
+    "bytes": 157698,
+    "profile_id": "crimson-crisp-lot-01-00019",
+    "view_index": 3,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001725_277638_crimson-crisp-lot-01-00020_cider_equatorial_view_0.jpg",
+    "sha256": "31bbe4f08e919761fcf566677bcb52317829e5d0867735a493560f9fb3a931de",
+    "bytes": 149371,
+    "profile_id": "crimson-crisp-lot-01-00020",
+    "view_index": 0,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001727_775449_crimson-crisp-lot-01-00020_cider_equatorial_view_1.jpg",
+    "sha256": "41f475175ef8dca0040ac236edf415974760451bf701300ca9c4cd242f2d8954",
+    "bytes": 129029,
+    "profile_id": "crimson-crisp-lot-01-00020",
+    "view_index": 1,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001730_263223_crimson-crisp-lot-01-00020_cider_equatorial_view_2.jpg",
+    "sha256": "ab8db2d60cd5d54eb6b16d6dc38cb27c6e088c152157ba25da9d7570fa56ed22",
+    "bytes": 135976,
+    "profile_id": "crimson-crisp-lot-01-00020",
+    "view_index": 2,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001732_782062_crimson-crisp-lot-01-00020_cider_equatorial_view_3.jpg",
+    "sha256": "7029bafbb949463acfb2a87ffc03fd295bdfb597321c6678101d9e8a622c5b18",
+    "bytes": 143604,
+    "profile_id": "crimson-crisp-lot-01-00020",
+    "view_index": 3,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001738_726442_crimson-crisp-lot-01-00021_cider_equatorial_view_0.jpg",
+    "sha256": "3076821da2ee64f147c5b79fa672f16fe195f759e1f3919de4d1fb702b8ed238",
+    "bytes": 142900,
+    "profile_id": "crimson-crisp-lot-01-00021",
+    "view_index": 0,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001741_221053_crimson-crisp-lot-01-00021_cider_equatorial_view_1.jpg",
+    "sha256": "f075ae6a3bfe15293e874f217912e895e0b75c41ab83884b090699654232990b",
+    "bytes": 141926,
+    "profile_id": "crimson-crisp-lot-01-00021",
+    "view_index": 1,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001743_710875_crimson-crisp-lot-01-00021_cider_equatorial_view_2.jpg",
+    "sha256": "28282435afa067ba0d6a7df587c75bd38b8408c750966d22d54822df13bbf181",
+    "bytes": 153723,
+    "profile_id": "crimson-crisp-lot-01-00021",
+    "view_index": 2,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001746_223635_crimson-crisp-lot-01-00021_cider_equatorial_view_3.jpg",
+    "sha256": "3047fe54e8dffa38120ddcd5261cc39989a03d8f2b59eb0fef2c94d7303ce930",
+    "bytes": 154824,
+    "profile_id": "crimson-crisp-lot-01-00021",
+    "view_index": 3,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001752_590449_crimson-crisp-lot-01-00022_cider_equatorial_view_0.jpg",
+    "sha256": "813a473c86e0f15ceba69ad9cbe8d03995507f7318609391d97f942930217d0f",
+    "bytes": 142707,
+    "profile_id": "crimson-crisp-lot-01-00022",
+    "view_index": 0,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001755_086433_crimson-crisp-lot-01-00022_cider_equatorial_view_1.jpg",
+    "sha256": "8cfc199f007d6f4a316810c9b00d444c8854fba20747d8ebc6c525111229b3e0",
+    "bytes": 147105,
+    "profile_id": "crimson-crisp-lot-01-00022",
+    "view_index": 1,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001757_580841_crimson-crisp-lot-01-00022_cider_equatorial_view_2.jpg",
+    "sha256": "8e323fe970f218d66ce0f1c70e53a701c136689a0c94faa13fa4243b7a488abb",
+    "bytes": 142846,
+    "profile_id": "crimson-crisp-lot-01-00022",
+    "view_index": 2,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001800_078748_crimson-crisp-lot-01-00022_cider_equatorial_view_3.jpg",
+    "sha256": "800e8602b0abb25d4cc666d985c332d066065fec35763339807cfcc40b78f886",
+    "bytes": 149284,
+    "profile_id": "crimson-crisp-lot-01-00022",
+    "view_index": 3,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001807_061710_crimson-crisp-lot-01-00023_cider_equatorial_view_0.jpg",
+    "sha256": "1ffe03d916c5693a1c888fafe2c1a664eed7bd29da8cec5b68eb4f9fea3822d5",
+    "bytes": 164767,
+    "profile_id": "crimson-crisp-lot-01-00023",
+    "view_index": 0,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001809_565480_crimson-crisp-lot-01-00023_cider_equatorial_view_1.jpg",
+    "sha256": "323c9235b3ba99580dd9a176ec5948ed3b6ab2e181207a7837cfea230083ced2",
+    "bytes": 150284,
+    "profile_id": "crimson-crisp-lot-01-00023",
+    "view_index": 1,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001812_046458_crimson-crisp-lot-01-00023_cider_equatorial_view_2.jpg",
+    "sha256": "0ff537f15cbff717376db04f5375181a5013da74861b4baf73bb10b7c29c345b",
+    "bytes": 163934,
+    "profile_id": "crimson-crisp-lot-01-00023",
+    "view_index": 2,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001814_559079_crimson-crisp-lot-01-00023_cider_equatorial_view_3.jpg",
+    "sha256": "dda9e282dbc26691ce5ed0c35f0271fa65de68021e1b6ceb82f9ddcc27f80e65",
+    "bytes": 165396,
+    "profile_id": "crimson-crisp-lot-01-00023",
+    "view_index": 3,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001821_358789_crimson-crisp-lot-01-00024_cider_equatorial_view_0.jpg",
+    "sha256": "a15a86f32ebc4b358c1685047229f56539e593c03ea48465471650524c251ee3",
+    "bytes": 157865,
+    "profile_id": "crimson-crisp-lot-01-00024",
+    "view_index": 0,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001823_862408_crimson-crisp-lot-01-00024_cider_equatorial_view_1.jpg",
+    "sha256": "7821997acfcddad504b05e103a3d48664eeed95f8959a3d74169a45dce1550d9",
+    "bytes": 150976,
+    "profile_id": "crimson-crisp-lot-01-00024",
+    "view_index": 1,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001826_342618_crimson-crisp-lot-01-00024_cider_equatorial_view_2.jpg",
+    "sha256": "890fc622cc650db891ae979e989167dca9d0263d5c708c557a335906f54ebc46",
+    "bytes": 148528,
+    "profile_id": "crimson-crisp-lot-01-00024",
+    "view_index": 2,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001828_855042_crimson-crisp-lot-01-00024_cider_equatorial_view_3.jpg",
+    "sha256": "0cc08f76a38a50b49a11555d7ec079d6804aad436ad9160ca2803be8f9a33b9b",
+    "bytes": 169059,
+    "profile_id": "crimson-crisp-lot-01-00024",
+    "view_index": 3,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001835_308676_crimson-crisp-lot-01-00025_cider_equatorial_view_0.jpg",
+    "sha256": "777d99db7cbe60f8fdb6fe847962bf940fc82c16ea0af21a79af57d8f19ce57e",
+    "bytes": 152448,
+    "profile_id": "crimson-crisp-lot-01-00025",
+    "view_index": 0,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001837_814303_crimson-crisp-lot-01-00025_cider_equatorial_view_1.jpg",
+    "sha256": "7f8c80d03441280eda56d5f111593096ac1f9807ce4e05c348c7f838bc85d177",
+    "bytes": 158204,
+    "profile_id": "crimson-crisp-lot-01-00025",
+    "view_index": 1,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001840_302511_crimson-crisp-lot-01-00025_cider_equatorial_view_2.jpg",
+    "sha256": "01da6d78cbc8194e091697065cf8e97d2f3abafd7e1842220195e3c67670d408",
+    "bytes": 166084,
+    "profile_id": "crimson-crisp-lot-01-00025",
+    "view_index": 2,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001842_807263_crimson-crisp-lot-01-00025_cider_equatorial_view_3.jpg",
+    "sha256": "66e70edec7f26d35866276a8845d5809918dfa1f21598aecd0988530da32b15a",
+    "bytes": 152314,
+    "profile_id": "crimson-crisp-lot-01-00025",
+    "view_index": 3,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001852_381064_crimson-crisp-lot-01-00026_cider_equatorial_view_0.jpg",
+    "sha256": "be885357ef0ebf37471cf298779c9fac0df600eb37201c5c8c35e9b3dd88138f",
+    "bytes": 140151,
+    "profile_id": "crimson-crisp-lot-01-00026",
+    "view_index": 0,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001854_870642_crimson-crisp-lot-01-00026_cider_equatorial_view_1.jpg",
+    "sha256": "26da913aae13800d1bdd301191337e75954de5b481e4bbbcb1eb78a16d1348cc",
+    "bytes": 134906,
+    "profile_id": "crimson-crisp-lot-01-00026",
+    "view_index": 1,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001857_380943_crimson-crisp-lot-01-00026_cider_equatorial_view_2.jpg",
+    "sha256": "5aea48bb7a243b62a44b772694279c2924f780f67566f23068261474df2f8008",
+    "bytes": 135962,
+    "profile_id": "crimson-crisp-lot-01-00026",
+    "view_index": 2,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001859_886269_crimson-crisp-lot-01-00026_cider_equatorial_view_3.jpg",
+    "sha256": "89574cbf2378e02beca40bb5f60d6cc942046966c147e6f0150a8e745c7073ae",
+    "bytes": 138788,
+    "profile_id": "crimson-crisp-lot-01-00026",
+    "view_index": 3,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001904_502506_crimson-crisp-lot-01-00027_cider_equatorial_view_0.jpg",
+    "sha256": "0ee5aee932f34fad9691c9b422c62b642cdac8c9249decb2f7c51afbf450dd32",
+    "bytes": 130236,
+    "profile_id": "crimson-crisp-lot-01-00027",
+    "view_index": 0,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001907_006934_crimson-crisp-lot-01-00027_cider_equatorial_view_1.jpg",
+    "sha256": "a41a58eb5d3b93e50db78befe1e93e7ce566f82d3ea9dc4472ee6c1cfd202c37",
+    "bytes": 123770,
+    "profile_id": "crimson-crisp-lot-01-00027",
+    "view_index": 1,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001909_494365_crimson-crisp-lot-01-00027_cider_equatorial_view_2.jpg",
+    "sha256": "cceeeaac17234f2703ab409cb909f0c5f87b1e8dfed2ccedc9c7bfec17b3e777",
+    "bytes": 139885,
+    "profile_id": "crimson-crisp-lot-01-00027",
+    "view_index": 2,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001911_997893_crimson-crisp-lot-01-00027_cider_equatorial_view_3.jpg",
+    "sha256": "f5c9e3a7dbc575c977ff4bd53d22ef2840fcb4de928fea42bb46b34495128833",
+    "bytes": 136328,
+    "profile_id": "crimson-crisp-lot-01-00027",
+    "view_index": 3,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001917_648000_crimson-crisp-lot-01-00028_cider_equatorial_view_0.jpg",
+    "sha256": "9c3da6f3601b5526cc7b4000cf8b12518b42b303256bf7cc84cddbb07bd33264",
+    "bytes": 141330,
+    "profile_id": "crimson-crisp-lot-01-00028",
+    "view_index": 0,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001920_143106_crimson-crisp-lot-01-00028_cider_equatorial_view_1.jpg",
+    "sha256": "bef64a169e4dbfd34660a619ab3411821cc458faff92786665495591b26e5512",
+    "bytes": 151300,
+    "profile_id": "crimson-crisp-lot-01-00028",
+    "view_index": 1,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001922_630930_crimson-crisp-lot-01-00028_cider_equatorial_view_2.jpg",
+    "sha256": "2eb2e795b9a4c6ad0308de6c6f8d81ec69171113e18e5706f6a55ccc36b1035e",
+    "bytes": 156345,
+    "profile_id": "crimson-crisp-lot-01-00028",
+    "view_index": 2,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001925_142705_crimson-crisp-lot-01-00028_cider_equatorial_view_3.jpg",
+    "sha256": "3444880cc98fc955f2bad2764b29c5415b4c2ec773983d5ccd0f5e017b40d7d3",
+    "bytes": 150661,
+    "profile_id": "crimson-crisp-lot-01-00028",
+    "view_index": 3,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001956_277788_crimson-crisp-lot-01-00029_cider_equatorial_view_0.jpg",
+    "sha256": "e3579620269bdc9d6220e9ea4a46b9dedd2f246339f0f3d340a2af86fcc43f08",
+    "bytes": 149148,
+    "profile_id": "crimson-crisp-lot-01-00029",
+    "view_index": 0,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_001958_791219_crimson-crisp-lot-01-00029_cider_equatorial_view_1.jpg",
+    "sha256": "9c32726cb9cfb545cfb17b9fd58896c16b4586b3ffe622fff96dedc0a43d1ffd",
+    "bytes": 146572,
+    "profile_id": "crimson-crisp-lot-01-00029",
+    "view_index": 1,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_002001_261420_crimson-crisp-lot-01-00029_cider_equatorial_view_2.jpg",
+    "sha256": "26d45e0a03febd519390a704f95e1d7fd6a29756e93302b3bb43dcb023ce994c",
+    "bytes": 143992,
+    "profile_id": "crimson-crisp-lot-01-00029",
+    "view_index": 2,
+    "reference_grade": "CIDER"
+  },
+  {
+    "file": "images/raw_20261006_002003_775558_crimson-crisp-lot-01-00029_cider_equatorial_view_3.jpg",
+    "sha256": "0a1cf8fa148242d31fbea7fa6f05825ea5521acb8ea943eda2071f7914b889e9",
+    "bytes": 160788,
+    "profile_id": "crimson-crisp-lot-01-00029",
+    "view_index": 3,
+    "reference_grade": "CIDER"
+  }
+]

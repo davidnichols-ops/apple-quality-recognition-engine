@@ -1,12 +1,14 @@
 # Apple Quality Recognition Engine
 
+> **Retired from active automated-grading development — 2026-11-16.** Preserved as a research prototype; unsuitable for operational grading. Read the [retirement decision](docs/RETIREMENT.md) for engineering delivered, measured failures, owner-reported limitations and reopening criteria. Inspect the [raw evidence and partial dataset](research/closeout/README.md). The sections below retain the historical design and are not an active delivery commitment.
+
 An edge-first system for grading apples on Apple Silicon. The intended primary model is a human-labeled YOLO26-Seg model that locates apples and segments `defect_surface` and `defect_critical`. A versioned policy turns those observations into a grade. The first operational product is a human-readable case review and annotation panel.
 
 **Models observe. Deterministic policy decides. Humans authorize learning and promotion.**
 
-This repository is an engineering prototype, not a validated commercial grader. No trained apple YOLO26-Seg checkpoint or control panel is present yet. Production claims begin only after a custom model, a profile-isolated holdout, and a real line trial pass the gates in `docs/roadmap.md`.
+This repository is an engineering prototype, not a validated commercial grader. A YOLO26s-Seg model was trained and tested through Roboflow; no trained apple checkpoint is bundled locally and the control panel was not completed. Production claims begin only after a custom model, a profile-isolated holdout, and a real line trial pass the gates in `docs/roadmap.md`.
 
-## Current build target
+## Historical build target
 
 Build the annotation and case-review loop around real captured apples. A human assigns the critical/surface class and corrects SAM 2-assisted masks. Each case should keep all views, original images, predictions, corrected labels, reasons, model and policy versions, and an append-only review history in a format a person or vision-language agent can inspect. The panel should expose and edit those records. Approved records become versioned training data; model or agent suggestions never silently replace the human decision. Logging edge cases is the first use case; future reinforcement learning is a research option, not an implemented training path.
 

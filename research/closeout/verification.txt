@@ -1,0 +1,143 @@
+Installed 6 packages in 69ms
+.................................................................        [100%]
+65 passed in 4.95s
+
+Archive verified: 120 image SHA-256 hashes; 30 unique profiles each with views 0-3.
+Saved prediction replay: 127 images, 30 profiles; grades 14 DISCARD / 15 G1 / 1 G2; 14 profiles require review under current 3.1.0 policy. Exit 0.
+No camera, model, hardware throughput or physical line test performed during closeout.
+
+Closeout date: 2026-11-16
+Code base: 81d30f8
+Initial command above: uv run --with pytest --with pyyaml pytest -q
+
+$ uv run --with pyflakes pyflakes baseline_verify.py camera_utils.py capture_dataset.py edge_harvest_schema.py glove_masking.py grading_engine.py kernel_apple_coreml.py kernel_dispatch.py local_inference.py override_persistence.py vlm_review_schema.py scripts tests
+Installed 1 package in 6ms
+
+exit=0
+
+$ uv run --with ruff ruff check --select F --ignore F401,F841 .
+F541 [*] f-string without any placeholders
+  --> lock_wb.py:82:15
+   |
+80 |     try:
+81 |         # Method 1: Temperature + Tint (most direct)
+82 |         print(f"[WB] Calling setWhiteBalanceModeLockedWithTemperatureAndTint...")
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+83 |         device.setWhiteBalanceModeLockedWithDeviceWhiteBalanceTemperatureAndTintValues_completionHandler_(
+84 |             target_tt, None
+   |
+help: Remove extraneous `f` prefix
+   |
+81 |         # Method 1: Temperature + Tint (most direct)
+   -         print(f"[WB] Calling setWhiteBalanceModeLockedWithTemperatureAndTint...")
+82 +         print("[WB] Calling setWhiteBalanceModeLockedWithTemperatureAndTint...")
+83 |         device.setWhiteBalanceModeLockedWithDeviceWhiteBalanceTemperatureAndTintValues_completionHandler_(
+   |
+
+F541 [*] f-string without any placeholders
+  --> lock_wb.py:92:15
+   |
+90 |         new_tt = device.temperatureAndTintValuesForDeviceWhiteBalanceGains_(new_gains)
+91 |         new_mode_name = {0: "ContinuousAuto", 1: "Locked"}.get(new_mode, f"Unknown({new_mode})")
+92 |         print(f"[WB] After lock:")
+   |               ^^^^^^^^^^^^^^^^^^^
+93 |         print(f"[WB]   Mode: {new_mode_name}")
+94 |         print(f"[WB]   Gains: R={new_gains.redValue:.4f} G={new_gains.greenValue:.4f} B={new_gains.blueValue:.4f}")
+   |
+help: Remove extraneous `f` prefix
+   |
+91 |         new_mode_name = {0: "ContinuousAuto", 1: "Locked"}.get(new_mode, f"Unknown({new_mode})")
+   -         print(f"[WB] After lock:")
+92 +         print("[WB] After lock:")
+93 |         print(f"[WB]   Mode: {new_mode_name}")
+   |
+
+F541 [*] f-string without any placeholders
+   --> lock_wb.py:102:15
+    |
+101 |         # Method 2: Direct gains
+102 |         print(f"[WB] Temp+Tint didn't lock. Trying direct gains...")
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+103 |         device.setWhiteBalanceModeLockedWithDeviceWhiteBalanceGains_completionHandler_(
+104 |             clamped, None
+    |
+help: Remove extraneous `f` prefix
+    |
+101 |         # Method 2: Direct gains
+    -         print(f"[WB] Temp+Tint didn't lock. Trying direct gains...")
+102 +         print("[WB] Temp+Tint didn't lock. Trying direct gains...")
+103 |         device.setWhiteBalanceModeLockedWithDeviceWhiteBalanceGains_completionHandler_(
+    |
+
+F541 [*] f-string without any placeholders
+   --> lock_wb.py:110:15
+    |
+108 |         new_tt = device.temperatureAndTintValuesForDeviceWhiteBalanceGains_(new_gains)
+109 |         new_mode_name = {0: "ContinuousAuto", 1: "Locked"}.get(new_mode, f"Unknown({new_mode})")
+110 |         print(f"[WB] After gains lock:")
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^
+111 |         print(f"[WB]   Mode: {new_mode_name}")
+112 |         print(f"[WB]   Gains: R={new_gains.redValue:.4f} G={new_gains.greenValue:.4f} B={new_gains.blueValue:.4f}")
+    |
+help: Remove extraneous `f` prefix
+    |
+109 |         new_mode_name = {0: "ContinuousAuto", 1: "Locked"}.get(new_mode, f"Unknown({new_mode})")
+    -         print(f"[WB] After gains lock:")
+110 +         print("[WB] After gains lock:")
+111 |         print(f"[WB]   Mode: {new_mode_name}")
+    |
+
+F541 [*] f-string without any placeholders
+   --> lock_wb.py:120:15
+    |
+119 |         print(f"\n[WB] Hardware lock not accepted. Mode stays {new_mode_name}.")
+120 |         print(f"[WB] The OV9782 sensor may not support hardware WB lock.")
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+121 |         print(f"[WB] Applying software WB correction in capture pipeline instead.")
+122 |         return "software"
+    |
+help: Remove extraneous `f` prefix
+    |
+119 |         print(f"\n[WB] Hardware lock not accepted. Mode stays {new_mode_name}.")
+    -         print(f"[WB] The OV9782 sensor may not support hardware WB lock.")
+120 +         print("[WB] The OV9782 sensor may not support hardware WB lock.")
+121 |         print(f"[WB] Applying software WB correction in capture pipeline instead.")
+    |
+
+F541 [*] f-string without any placeholders
+   --> lock_wb.py:121:15
+    |
+119 |         print(f"\n[WB] Hardware lock not accepted. Mode stays {new_mode_name}.")
+120 |         print(f"[WB] The OV9782 sensor may not support hardware WB lock.")
+121 |         print(f"[WB] Applying software WB correction in capture pipeline instead.")
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+122 |         return "software"
+    |
+help: Remove extraneous `f` prefix
+    |
+120 |         print(f"[WB] The OV9782 sensor may not support hardware WB lock.")
+    -         print(f"[WB] Applying software WB correction in capture pipeline instead.")
+121 +         print("[WB] Applying software WB correction in capture pipeline instead.")
+122 |         return "software"
+    |
+
+Found 6 errors.
+[*] 6 fixable with `--fix`.
+Downloading ruff (9.1MiB)
+ Downloaded ruff
+Installed 1 package in 8ms
+
+exit=1
+
+$ python3 -m compileall -q .
+./.venv/lib/python3.14/site-packages/sympy/testing/runtests.py:283: SyntaxWarning: 'return' in a 'finally' block
+  return p.returncode
+
+exit=0
+
+$ git diff --check
+
+exit=0
+
+Ruff baseline reconciliation: all six F541 findings are in unchanged lock_wb.py. File bytes equal HEAD:lock_wb.py; SHA-256 967f8fe914d3445cbeadb4da66c7d29a871ea4eab31af05634a247082c7b0fb1. Existing findings retained; no runtime source changed.
+pytest exit=0 (65 passed).

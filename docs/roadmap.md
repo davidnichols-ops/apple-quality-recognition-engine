@@ -1,5 +1,7 @@
 # Evidence-Gated Roadmap
 
+> Historical plan, retired 2026-11-16. These stages and targets are not completed work or active commitments. See [the retirement decision](RETIREMENT.md). Four-view rotation was dataset acquisition only; production intent was conveyor inspection.
+
 This roadmap replaces the idea of live recursive self-improvement with a governed learning loop. Stages advance on evidence, not calendar time or raw image count. The current build target is a human-editable annotation and edge-case panel; manually reviewed YOLO26-Seg labels are the training source of truth. Depth Anything V2 is a candidate supporting signal and requires a measured gain over YOLO26-Seg alone.
 
 ## North-star outcome

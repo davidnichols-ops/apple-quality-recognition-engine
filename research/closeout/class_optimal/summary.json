@@ -1,0 +1,139 @@
+{
+  "model_id": "davids-workspace-o4qfg/test-demo-7aocj-1-yolo26s-seg-t2",
+  "dataset_images": 127,
+  "apple_frames": 120,
+  "negative_frames": 7,
+  "threshold_mode": "class-optimal",
+  "policy_version": "3.0.0-candidate",
+  "class_id_contract_expected": {
+    "apple": 0,
+    "stem_calyx": 1,
+    "defect_surface": 2,
+    "defect_critical": 3
+  },
+  "class_id_contract_observed": {
+    "apple": [
+      0
+    ],
+    "stem_calyx": [
+      3
+    ],
+    "defect_critical": [
+      1
+    ],
+    "defect_surface": [
+      2
+    ]
+  },
+  "class_id_contract_matches": false,
+  "apple_frames_without_apple": 0,
+  "negative_false_positive_frames": 0,
+  "frame_grades": {
+    "G1": 94,
+    "DISCARD": 24,
+    "G2": 2
+  },
+  "profile_grades": {
+    "DISCARD": 14,
+    "G1": 15,
+    "G2": 1
+  },
+  "complete_profiles": 30,
+  "total_profiles": 30,
+  "profile_split_leakage": {
+    "crimson-crisp-lot-01-00000": [
+      "train",
+      "valid"
+    ],
+    "crimson-crisp-lot-01-00001": [
+      "train",
+      "valid"
+    ],
+    "crimson-crisp-lot-01-00002": [
+      "test",
+      "train",
+      "valid"
+    ],
+    "crimson-crisp-lot-01-00003": [
+      "test",
+      "train"
+    ],
+    "crimson-crisp-lot-01-00004": [
+      "train",
+      "valid"
+    ],
+    "crimson-crisp-lot-01-00005": [
+      "train",
+      "valid"
+    ],
+    "crimson-crisp-lot-01-00007": [
+      "test",
+      "train"
+    ],
+    "crimson-crisp-lot-01-00009": [
+      "test",
+      "valid"
+    ],
+    "crimson-crisp-lot-01-00011": [
+      "train",
+      "valid"
+    ],
+    "crimson-crisp-lot-01-00012": [
+      "train",
+      "valid"
+    ],
+    "crimson-crisp-lot-01-00013": [
+      "test",
+      "train"
+    ],
+    "crimson-crisp-lot-01-00016": [
+      "test",
+      "train",
+      "valid"
+    ],
+    "crimson-crisp-lot-01-00015": [
+      "test",
+      "train"
+    ],
+    "crimson-crisp-lot-01-00014": [
+      "train",
+      "valid"
+    ],
+    "crimson-crisp-lot-01-00023": [
+      "test",
+      "train",
+      "valid"
+    ],
+    "crimson-crisp-lot-01-00022": [
+      "train",
+      "valid"
+    ],
+    "crimson-crisp-lot-01-00024": [
+      "test",
+      "train"
+    ],
+    "crimson-crisp-lot-01-00025": [
+      "train",
+      "valid"
+    ],
+    "crimson-crisp-lot-01-00026": [
+      "test",
+      "train",
+      "valid"
+    ],
+    "crimson-crisp-lot-01-00028": [
+      "train",
+      "valid"
+    ],
+    "crimson-crisp-lot-01-00027": [
+      "train",
+      "valid"
+    ],
+    "crimson-crisp-lot-01-00029": [
+      "train",
+      "valid"
+    ]
+  },
+  "frames_with_bound_critical": 24,
+  "frames_with_bound_surface": 6
+}
