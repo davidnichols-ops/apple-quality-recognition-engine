@@ -141,3 +141,5 @@ exit=0
 
 Ruff baseline reconciliation: all six F541 findings are in unchanged lock_wb.py. File bytes equal HEAD:lock_wb.py; SHA-256 967f8fe914d3445cbeadb4da66c7d29a871ea4eab31af05634a247082c7b0fb1. Existing findings retained; no runtime source changed.
 pytest exit=0 (65 passed).
+
+Publication diff check initially flagged CRLF endings in copied CSVs. Normalized both frame tables to LF without changing values; final closeout diff check passed.

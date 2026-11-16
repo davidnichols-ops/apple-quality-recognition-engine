@@ -3,7 +3,7 @@
 See [the retirement decision](../../docs/RETIREMENT.md). Evidence is retained to make both the engineering and the limitations inspectable.
 
 - `predictions.json`: 127 historical hosted prediction records, including polygon coordinates, split metadata and annotation class counts. Remote image URLs were removed; prediction coordinates are preserved. Class counts are not complete ground-truth masks.
-- `class_optimal/` and `global_035/`: original October smoke outputs. `class_optimal` means Roboflow evaluation-derived thresholds, not validated deployment recommendations. These were generated under policy 3.0.0 before the zero-defect review flag; do not describe them as current 3.1.0 outputs.
+- `class_optimal/` and `global_035/`: October smoke outputs (CSV line endings normalized to LF; values unchanged). `class_optimal` means Roboflow evaluation-derived thresholds, not validated deployment recommendations. These were generated under policy 3.0.0 before the zero-defect review flag; do not describe them as current 3.1.0 outputs.
 - `test_predictions.jpg`: historical 13-image test split visualization. The split leaked physical apple identity.
 - `dataset_manifest.json`: 120 source-image hashes, sizes, profile IDs, view indexes and capture-grade labels.
 - `dataset_archive.sha256`: digest of the release ZIP.
